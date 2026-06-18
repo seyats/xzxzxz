@@ -10,4 +10,3 @@ Secrets.xcconfig
 *.mobileprovision
 *.cer
 *.ipa
-Tide/Resources/Assets.xcassets/AppIcon.appiconset/TideIcon.png
