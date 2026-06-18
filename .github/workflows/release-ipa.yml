@@ -1,0 +1,66 @@
+name: Build Signed IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Marketing version
+        required: true
+        default: 1.0.0
+      build_number:
+        description: Build number
+        required: true
+        default: "1"
+      export_method:
+        description: app-store-connect, ad-hoc, development, or enterprise
+        required: true
+        default: app-store-connect
+
+jobs:
+  ipa:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+      PRODUCT_BUNDLE_IDENTIFIER: ${{ secrets.APP_BUNDLE_ID }}
+      P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      MARKETING_VERSION: ${{ inputs.version }}
+      CURRENT_PROJECT_VERSION: ${{ inputs.build_number }}
+      EXPORT_METHOD: ${{ inputs.export_method }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Validate signing secrets
+        shell: bash
+        run: |
+          test -n "${DEVELOPMENT_TEAM}"
+          test -n "${PRODUCT_BUNDLE_IDENTIFIER}"
+          test -n "${{ secrets.BUILD_CERTIFICATE_BASE64 }}"
+          test -n "${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}"
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Import signing identity
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+        run: bash Tools/import-signing.sh
+      - name: Archive and export IPA
+        run: bash Tools/build-ipa.sh
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tide-${{ inputs.version }}-${{ inputs.build_number }}
+          path: build/export/*.ipa
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload dSYM
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tide-dSYMs-${{ inputs.build_number }}
+          path: build/archive/Tide.xcarchive/dSYMs
+          if-no-files-found: error
+          retention-days: 30

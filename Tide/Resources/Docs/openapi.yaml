@@ -1,0 +1,398 @@
+openapi: 3.1.0
+info:
+  title: Tide Bot API
+  version: 1.0.0
+  description: HTTP API for bots, webhooks, messages and inline interactions in Tide.
+servers:
+  - url: https://api.example.com
+    description: Replace with your Tide backend
+tags:
+  - name: Identity
+  - name: Updates
+  - name: Messages
+  - name: Webhooks
+  - name: Callbacks
+paths:
+  /bot{token}/getMe:
+    post:
+      tags: [Identity]
+      operationId: getMe
+      summary: Validate a token and return the bot account
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      responses:
+        '200':
+          description: Bot profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /bot{token}/getUpdates:
+    post:
+      tags: [Updates]
+      operationId: getUpdates
+      summary: Receive updates using long polling
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                offset:
+                  type: integer
+                  format: int64
+                timeout:
+                  type: integer
+                  minimum: 0
+                  maximum: 50
+                  default: 30
+                allowed_updates:
+                  type: array
+                  items:
+                    type: string
+                    enum: [message, edited_message, channel_post, callback_query]
+      responses:
+        '200':
+          description: Ordered update batch
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Update'
+        '409':
+          description: A webhook is currently active
+  /bot{token}/sendMessage:
+    post:
+      tags: [Messages]
+      operationId: sendMessage
+      summary: Send a text message
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '200':
+          description: Sent message
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/Message'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /bot{token}/setWebhook:
+    post:
+      tags: [Webhooks]
+      operationId: setWebhook
+      summary: Register an HTTPS webhook
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, secret_token]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  pattern: '^https://'
+                secret_token:
+                  type: string
+                  minLength: 16
+                  maxLength: 256
+                allowed_updates:
+                  type: array
+                  items:
+                    type: string
+                drop_pending_updates:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          $ref: '#/components/responses/BooleanResult'
+  /bot{token}/deleteWebhook:
+    post:
+      tags: [Webhooks]
+      operationId: deleteWebhook
+      summary: Remove the active webhook
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                drop_pending_updates:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          $ref: '#/components/responses/BooleanResult'
+  /bot{token}/answerCallbackQuery:
+    post:
+      tags: [Callbacks]
+      operationId: answerCallbackQuery
+      summary: Answer an inline keyboard callback
+      parameters:
+        - $ref: '#/components/parameters/BotToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [callback_query_id]
+              properties:
+                callback_query_id:
+                  type: string
+                text:
+                  type: string
+                  maxLength: 200
+                show_alert:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          $ref: '#/components/responses/BooleanResult'
+components:
+  parameters:
+    BotToken:
+      name: token
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 20
+      description: Secret token issued by the Tide bot console.
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Unauthorized:
+      description: Token is missing, revoked or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BooleanResult:
+      description: Boolean operation result
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/BaseResponse'
+              - type: object
+                properties:
+                  result:
+                    type: boolean
+  schemas:
+    BaseResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+        description:
+          type: string
+        error_code:
+          type: integer
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          required: [ok, description, error_code]
+          properties:
+            ok:
+              const: false
+            parameters:
+              type: object
+              properties:
+                retry_after:
+                  type: integer
+    User:
+      type: object
+      required: [id, is_bot, first_name]
+      properties:
+        id:
+          type: integer
+          format: int64
+        is_bot:
+          type: boolean
+        first_name:
+          type: string
+        last_name:
+          type: string
+        username:
+          type: string
+    Chat:
+      type: object
+      required: [id, kind]
+      properties:
+        id:
+          type: integer
+          format: int64
+        kind:
+          type: string
+          enum: [private, group, supergroup, channel]
+        title:
+          type: string
+        username:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+    MessageEntity:
+      type: object
+      required: [type, offset, length]
+      properties:
+        type:
+          type: string
+          enum: [mention, hashtag, bot_command, url, text_link, bold, italic, code, pre]
+        offset:
+          type: integer
+        length:
+          type: integer
+        url:
+          type: string
+          format: uri
+        user:
+          $ref: '#/components/schemas/User'
+    Message:
+      type: object
+      required: [id, date, chat]
+      properties:
+        id:
+          type: integer
+          format: int64
+        date:
+          type: integer
+          format: int64
+          description: Unix timestamp in seconds.
+        chat:
+          $ref: '#/components/schemas/Chat'
+        from:
+          $ref: '#/components/schemas/User'
+        text:
+          type: string
+          maxLength: 4096
+        caption:
+          type: string
+          maxLength: 1024
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageEntity'
+    CallbackQuery:
+      type: object
+      required: [id, from]
+      properties:
+        id:
+          type: string
+        from:
+          $ref: '#/components/schemas/User'
+        message:
+          $ref: '#/components/schemas/Message'
+        data:
+          type: string
+          maxLength: 64
+    Update:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: integer
+          format: int64
+        message:
+          $ref: '#/components/schemas/Message'
+        edited_message:
+          $ref: '#/components/schemas/Message'
+        channel_post:
+          $ref: '#/components/schemas/Message'
+        callback_query:
+          $ref: '#/components/schemas/CallbackQuery'
+    InlineKeyboardButton:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+        url:
+          type: string
+          format: uri
+        callback_data:
+          type: string
+          maxLength: 64
+      oneOf:
+        - required: [url]
+        - required: [callback_data]
+    InlineKeyboardMarkup:
+      type: object
+      required: [inline_keyboard]
+      properties:
+        inline_keyboard:
+          type: array
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/InlineKeyboardButton'
+    SendMessageRequest:
+      type: object
+      required: [chat_id, text]
+      properties:
+        chat_id:
+          type: integer
+          format: int64
+        text:
+          type: string
+          maxLength: 4096
+        parse_mode:
+          type: string
+          enum: [HTML, MarkdownV2]
+        disable_notification:
+          type: boolean
+          default: false
+        reply_markup:
+          $ref: '#/components/schemas/InlineKeyboardMarkup'

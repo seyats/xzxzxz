@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Tide Bot API</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero" id="top">
+    <nav class="nav">
+      <a class="brand" href="#top">Tide<span>Bot</span></a>
+      <button id="theme" class="icon-button" type="button" aria-label="Toggle theme">◐</button>
+    </nav>
+    <div class="hero-content">
+      <p class="eyebrow">Developer Platform</p>
+      <h1>Build bots that feel native inside Tide.</h1>
+      <p class="lead">
+        A compact Telegram-style bot platform for Tide: authenticated requests, updates, webhooks,
+        inline keyboards, message formatting, and a local Swift SDK for app-side automation.
+      </p>
+      <div class="hero-actions">
+        <a class="primary" href="#quickstart">Quick start</a>
+        <a class="secondary" href="#methods">Methods</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <aside class="sidebar" aria-label="Documentation">
+      <a href="#overview">Overview</a>
+      <a href="#quickstart">Quick start</a>
+      <a href="#auth">Authentication</a>
+      <a href="#updates">Updates</a>
+      <a href="#webhooks">Webhooks</a>
+      <a href="#methods">Methods</a>
+      <a href="#keyboards">Keyboards</a>
+      <a href="#security">Security</a>
+      <a href="#limits">Limits</a>
+      <a href="#swift">Swift SDK</a>
+      <a href="#examples">Examples</a>
+      <a href="openapi.yaml">OpenAPI</a>
+    </aside>
+
+    <article class="content">
+      <section id="overview">
+        <p class="section-index">01</p>
+        <h2>Overview</h2>
+        <p>
+          Tide Bot API is the contract between your backend and the Tide client. It supports
+          message delivery, callback buttons, webhook push, long polling, and a local bot
+          management screen in the app.
+        </p>
+        <div class="callout">
+          <strong>Important.</strong> Never ship a bot token inside the public iOS app. Store it in
+          a server-side secret manager, or in Keychain only for local development.
+        </div>
+        <div class="grid three">
+          <div class="card"><span>01</span><h3>Create a bot</h3><p>Choose a display name and a username ending with <code>bot</code>.</p></div>
+          <div class="card"><span>02</span><h3>Issue a token</h3><p>Generate the token once and keep it server-side.</p></div>
+          <div class="card"><span>03</span><h3>Connect delivery</h3><p>Use webhook or polling, not both at the same time.</p></div>
+        </div>
+      </section>
+
+      <section id="quickstart">
+        <p class="section-index">02</p>
+        <h2>Quick start</h2>
+        <p>
+          Start by calling <code>/getMe</code>. If the token is valid, the bot profile is returned
+          and you can begin processing updates.
+        </p>
+        <div class="code-header"><span>Terminal</span><button data-copy="curl-getme">Copy</button></div>
+        <pre id="curl-getme"><code>curl -X POST \
+  https://api.example.com/bot$TIDE_BOT_TOKEN/getMe \
+  -H "Content-Type: application/json"</code></pre>
+        <pre><code>{
+  "ok": true,
+  "result": {
+    "id": 1042001,
+    "is_bot": true,
+    "first_name": "Weather",
+    "username": "weather_bot"
+  }
+}</code></pre>
+      </section>
+
+      <section id="auth">
+        <p class="section-index">03</p>
+        <h2>Authentication</h2>
+        <p>
+          Requests use the form <code>/bot&lt;token&gt;/&lt;method&gt;</code>. The token should never
+          appear in logs, analytics, crash dumps, or client-side bundles.
+        </p>
+        <table>
+          <thead><tr><th>Environment</th><th>Storage</th><th>Recommendation</th></tr></thead>
+          <tbody>
+            <tr><td>Production</td><td>Secret manager</td><td>Rotate every 90 days</td></tr>
+            <tr><td>CI</td><td>Encrypted secrets</td><td>Inject at build time</td></tr>
+            <tr><td>Local dev</td><td>Keychain</td><td>Use a non-production bot</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="updates">
+        <p class="section-index">04</p>
+        <h2>Updates</h2>
+        <p>
+          An update is a normalized event object. Handle only the fields you need, then store the
+          latest update ID so your consumer stays idempotent.
+        </p>
+        <pre><code>{
+  "id": 928001,
+  "message": {
+    "id": 41,
+    "date": 1781791200,
+    "chat": { "id": 712004, "kind": "private" },
+    "from": { "id": 712004, "is_bot": false, "first_name": "Maya" },
+    "text": "/start"
+  }
+}</code></pre>
+        <div class="grid two">
+          <div class="card"><h3>message</h3><p>Incoming text, media, command, or file.</p></div>
+          <div class="card"><h3>edited_message</h3><p>Content changed after the original send.</p></div>
+          <div class="card"><h3>callback_query</h3><p>User tapped an inline button.</p></div>
+          <div class="card"><h3>channel_post</h3><p>Bot published a post into a channel.</p></div>
+        </div>
+      </section>
+
+      <section id="webhooks">
+        <p class="section-index">05</p>
+        <h2>Webhooks</h2>
+        <p>
+          Webhooks are the preferred production delivery mode. Tide sends a JSON update plus the
+          <code>X-Tide-Bot-Secret</code> header for verification.
+        </p>
+        <div class="code-header"><span>Swift / Vapor</span><button data-copy="swift-webhook">Copy</button></div>
+        <pre id="swift-webhook"><code>app.post("tide", "webhook") { request async throws -> HTTPStatus in
+  guard request.headers.first(name: "X-Tide-Bot-Secret") == environment.secret else {
+    throw Abort(.unauthorized)
+  }
+  let update = try request.content.decode(BotUpdate.self)
+  try await updateHandler.handle(update)
+  return .ok
+}</code></pre>
+        <ul class="checklist">
+          <li>Use HTTPS with a valid certificate.</li>
+          <li>Acknowledge updates quickly and offload slow work to a queue.</li>
+          <li>Deduplicate by update ID.</li>
+          <li>Verify the secret header before decoding business logic.</li>
+        </ul>
+      </section>
+
+      <section id="methods">
+        <p class="section-index">06</p>
+        <h2>Methods</h2>
+        <div class="endpoint"><span class="method">POST</span><code>/bot&lt;token&gt;/getMe</code><p>Returns the bot profile and validates the token.</p></div>
+        <div class="endpoint"><span class="method">POST</span><code>/bot&lt;token&gt;/getUpdates</code><p>Fetches updates in polling mode.</p></div>
+        <div class="endpoint"><span class="method">POST</span><code>/bot&lt;token&gt;/sendMessage</code><p>Sends text, optional HTML or MarkdownV2 formatting, and a reply markup.</p></div>
+        <div class="endpoint"><span class="method">POST</span><code>/bot&lt;token&gt;/setWebhook</code><p>Registers the webhook URL and secret.</p></div>
+        <div class="endpoint"><span class="method">POST</span><code>/bot&lt;token&gt;/deleteWebhook</code><p>Turns webhook delivery off and restores polling.</p></div>
+        <div class="endpoint"><span class="method">POST</span><code>/bot&lt;token&gt;/answerCallbackQuery</code><p>Stops the loading indicator for an inline button action.</p></div>
+      </section>
+
+      <section id="keyboards">
+        <p class="section-index">07</p>
+        <h2>Inline keyboards</h2>
+        <p>
+          Buttons can open a URL or send a short callback payload back to your bot. Keep sensitive
+          state on the server, not inside <code>callback_data</code>.
+        </p>
+        <div class="keyboard-demo" aria-label="Keyboard example">
+          <button>Open Tide ↗</button>
+          <button>Subscribe</button>
+          <button class="wide">Settings</button>
+        </div>
+      </section>
+
+      <section id="security">
+        <p class="section-index">08</p>
+        <h2>Security</h2>
+        <div class="grid two">
+          <div class="card"><h3>Least privilege</h3><p>Give each bot only the permissions it truly needs.</p></div>
+          <div class="card"><h3>Rotation</h3><p>Rotate tokens immediately after any exposure.</p></div>
+          <div class="card"><h3>Validation</h3><p>Validate payload size, content type, and command shape.</p></div>
+          <div class="card"><h3>Audit</h3><p>Log update IDs and method names, never raw secrets.</p></div>
+        </div>
+      </section>
+
+      <section id="limits">
+        <p class="section-index">09</p>
+        <h2>Limits</h2>
+        <table>
+          <thead><tr><th>Operation</th><th>Limit</th><th>Behavior</th></tr></thead>
+          <tbody>
+            <tr><td>sendMessage</td><td>30/sec per bot</td><td>HTTP 429 with retry_after</td></tr>
+            <tr><td>Messages per chat</td><td>1/sec</td><td>Short bursts are okay</td></tr>
+            <tr><td>Text</td><td>4096 chars</td><td>Split long replies</td></tr>
+            <tr><td>callback_data</td><td>64 bytes</td><td>Store state server-side</td></tr>
+            <tr><td>Webhook body</td><td>2 MB</td><td>Media should travel as links</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="swift">
+        <p class="section-index">10</p>
+        <h2>Swift SDK</h2>
+        <p>
+          The app bundles a Swift actor-based client that uses async/await and Codable models for
+          local bot workflows and preview data.
+        </p>
+        <div class="code-header"><span>Swift</span><button data-copy="swift-sdk">Copy</button></div>
+        <pre id="swift-sdk"><code>let client = TideBotAPIClient(
+  token: environment.botToken,
+  baseURL: URL(string: "https://api.example.com/")!
+)
+
+let keyboard = BotInlineKeyboardMarkup(inlineKeyboard: [[
+  BotInlineKeyboardButton(text: "Open Tide", url: URL(string: "https://tide.app"))
+]])
+
+let message = try await client.sendMessage(
+  chatID: update.message!.chat.id,
+  text: "&lt;b&gt;Ready.&lt;/b&gt; Everything works.",
+  keyboard: keyboard
+)</code></pre>
+      </section>
+
+      <section id="examples">
+        <p class="section-index">11</p>
+        <h2>Examples</h2>
+        <div class="grid two">
+          <div class="card"><h3>Welcome bot</h3><p>Greets new users, shows onboarding buttons, and stores the onboarding step server-side.</p></div>
+          <div class="card"><h3>Moderation bot</h3><p>Collects reports, routes them to moderators, and mirrors Tide admin actions.</p></div>
+          <div class="card"><h3>Broadcast bot</h3><p>Posts channel updates, edits messages in place, and retries failures safely.</p></div>
+          <div class="card"><h3>Utility bot</h3><p>Serves weather, tasks, reminders, and quick commands with a small footprint.</p></div>
+        </div>
+      </section>
+    </article>
+  </main>
+
+  <footer>
+    <strong>Tide Bot API</strong>
+    <span>Version 1.0 · iOS 26 · Swift 6</span>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>

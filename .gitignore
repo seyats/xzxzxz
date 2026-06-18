@@ -1,0 +1,13 @@
+Tide.xcodeproj
+DerivedData/
+build/
+.build/
+xcuserdata/
+*.xcuserstate
+Secrets.xcconfig
+.DS_Store
+*.p12
+*.mobileprovision
+*.cer
+*.ipa
+Tide/Resources/Assets.xcassets/AppIcon.appiconset/TideIcon.png
