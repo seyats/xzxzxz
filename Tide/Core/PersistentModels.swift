@@ -16,6 +16,7 @@ final class UserRecord {
     var following: Int
     var joinedAt: Date
     var lastSeenAt: Date
+    var coverImageURLString: String?
     var statusRawValue: String
     var isFollowing: Bool
     var isBlocked: Bool
@@ -34,6 +35,7 @@ final class UserRecord {
         following = user.following
         joinedAt = user.joinedAt
         lastSeenAt = user.lastSeenAt
+        coverImageURLString = user.coverImageURL?.absoluteString
         statusRawValue = user.status.rawValue
         isFollowing = user.isFollowing
         isBlocked = user.isBlocked
@@ -53,6 +55,7 @@ final class UserRecord {
             following: following,
             joinedAt: joinedAt,
             coverSymbol: coverSymbol,
+            coverImageURL: coverImageURLString.flatMap(URL.init(string:)),
             status: AccountStatus(rawValue: statusRawValue) ?? .active,
             lastSeenAt: lastSeenAt,
             isFollowing: isFollowing,

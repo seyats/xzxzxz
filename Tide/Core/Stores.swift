@@ -113,12 +113,16 @@ final class SessionStore {
         errorMessage = nil
     }
 
-    func updateProfile(name: String, biography: String, avatarSymbol: String? = nil, avatarImageURL: URL? = nil) {
+    func updateProfile(name: String, username: String? = nil, biography: String, avatarSymbol: String? = nil, avatarImageURL: URL? = nil, coverImageURL: URL? = nil) {
         guard var user = currentUser else { return }
         user.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let username {
+            user.username = Self.fallbackUsername(from: username)
+        }
         user.biography = biography.trimmingCharacters(in: .whitespacesAndNewlines)
         if let avatarSymbol { user.avatarSymbol = avatarSymbol }
         user.avatarImageURL = avatarImageURL
+        user.coverImageURL = coverImageURL
         user.lastSeenAt = .now
         currentUser = user
         database?.updateUser(user)
@@ -167,7 +171,8 @@ final class SessionStore {
             followers: 0,
             following: 0,
             joinedAt: .now,
-            coverSymbol: "water"
+            coverSymbol: "water",
+            coverImageURL: nil
         )
     }
 }

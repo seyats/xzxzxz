@@ -1,13 +1,14 @@
 import PhotosUI
 import SwiftUI
 import UserNotifications
+import UIKit
 
 struct ProfileView: View {
     @Environment(AppDependencies.self) private var dependencies
     let user: User
     @State private var profile: User
-    @State private var section = "Posts"
-    private let sections = ["Posts", "Media", "Saved", "Likes"]
+    @State private var section = "profile_tab_posts"
+    private let sections = ["profile_tab_posts", "profile_tab_media", "profile_tab_saved", "profile_tab_likes"]
 
     init(user: User) {
         self.user = user
@@ -31,11 +32,11 @@ struct ProfileView: View {
                     }
                 } header: {
                     Picker("Profile section", selection: $section) {
-                        ForEach(sections, id: \.self) { Text($0).tag($0) }
+                        ForEach(sections, id: \.self) { Text(LocalizedStringKey($0)).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    .padding()
-                    .background(.bar)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
                 }
             }
         }
@@ -57,37 +58,31 @@ struct ProfileView: View {
     private var profileHeader: some View {
         VStack(alignment: .leading, spacing: 16) {
             ZStack(alignment: .bottomLeading) {
-                LinearGradient(colors: [TidePalette.ink.opacity(0.32), TidePalette.subtle], startPoint: .topLeading, endPoint: .bottomTrailing)
+                coverView
                     .frame(height: 150)
-                    .overlay(Image(systemName: profile.coverSymbol).font(.system(size: 64, weight: .ultraLight)).opacity(0.25))
-                AvatarView(user: profile, size: 92)
-                    .padding(4)
-                    .background(TidePalette.paper, in: Circle())
+                avatarButton
                     .offset(x: 18, y: 42)
             }
             HStack {
                 Spacer()
                 if isCurrentUser {
-                    Button("Edit Profile") { dependencies.router.sheet = .editProfile }.buttonStyle(TideSecondaryButtonStyle())
+                    Button(String(localized: "profile_edit_profile_button")) { dependencies.router.sheet = .editProfile }.buttonStyle(TideSecondaryButtonStyle())
                 } else {
-                    Button("Message", action: startMessage).buttonStyle(TideSecondaryButtonStyle())
-                    Button(profile.isFollowing ? "Following" : "Follow", action: toggleFollow).buttonStyle(TidePrimaryButtonStyle())
+                    Button(String(localized: "profile_message"), action: startMessage).buttonStyle(TideSecondaryButtonStyle())
+                    Button(profile.isFollowing ? String(localized: "profile_following_state") : String(localized: "profile_follow"), action: toggleFollow).buttonStyle(TidePrimaryButtonStyle())
                 }
             }
             .padding(.horizontal)
             VStack(alignment: .leading, spacing: 7) {
                 VerifiedName(user: profile).font(.title2)
                 Text(profile.handle).foregroundStyle(.secondary)
-                if profile.status != .active {
-                    Label(profile.status.title, systemImage: "exclamationmark.shield.fill").font(.caption).foregroundStyle(.secondary)
-                }
                 Text(profile.biography)
-                Text("Joined \(profile.joinedAt.formatted(.dateTime.month(.wide).year()))")
+                Text("\(String(localized: "profile_joined")) \(profile.joinedAt.formatted(.dateTime.month(.wide).year()))")
                     .font(.subheadline).foregroundStyle(.secondary)
                 HStack(spacing: 20) {
-                    counter(profile.following, "Following")
-                    counter(profile.followers, "Followers")
-                    counter(authoredPosts.count, "Posts")
+                    counter(profile.following, String(localized: "profile_following"))
+                    counter(profile.followers, String(localized: "profile_followers"))
+                    counter(authoredPosts.count, String(localized: "profile_posts"))
                 }
                 .padding(.top, 4)
             }
@@ -96,13 +91,52 @@ struct ProfileView: View {
         }
     }
 
+    private var coverView: some View {
+        Group {
+            if let coverURL = profile.coverImageURL,
+               let image = UIImage(contentsOfFile: coverURL.path) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .clipped()
+            } else {
+                LinearGradient(colors: [TidePalette.ink.opacity(0.28), TidePalette.subtle], startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if isCurrentUser {
+                Button {
+                    dependencies.router.sheet = .editProfile
+                } label: {
+                    Image(systemName: "camera.fill")
+                        .font(.footnote.weight(.semibold))
+                        .frame(width: 34, height: 34)
+                        .background(.black.opacity(0.35), in: Circle())
+                }
+                .padding(12)
+            }
+        }
+    }
+
+    private var avatarButton: some View {
+        Button {
+            if isCurrentUser { dependencies.router.sheet = .editProfile }
+        } label: {
+            AvatarView(user: profile, size: 92)
+                .padding(4)
+                .background(TidePalette.paper, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isCurrentUser)
+    }
+
     private var authoredPosts: [Post] { dependencies.social.posts.filter { $0.author.id == profile.id } }
 
     private var visiblePosts: [Post] {
         switch section {
-        case "Media": authoredPosts.filter { !$0.media.isEmpty }
-        case "Saved": isCurrentUser ? dependencies.social.posts.filter(\.isSaved) : []
-        case "Likes": isCurrentUser ? dependencies.social.posts.filter(\.isLiked) : []
+        case "profile_tab_media": authoredPosts.filter { !$0.media.isEmpty }
+        case "profile_tab_saved": isCurrentUser ? dependencies.social.posts.filter(\.isSaved) : []
+        case "profile_tab_likes": isCurrentUser ? dependencies.social.posts.filter(\.isLiked) : []
         default: authoredPosts
         }
     }
@@ -138,50 +172,55 @@ struct EditProfileView: View {
     @Environment(AppDependencies.self) private var dependencies
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
+    @State private var username = ""
     @State private var biography = ""
     @State private var avatarSymbol = "person.crop.circle.fill"
     @State private var avatarImageURL: URL?
+    @State private var coverImageURL: URL?
     @State private var avatarItem: PhotosPickerItem?
-    private let symbols = ["person.crop.circle.fill", "water.waves", "camera.fill", "paintpalette.fill", "waveform", "sparkles"]
+    @State private var coverItem: PhotosPickerItem?
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Photo") {
-                    if let user = dependencies.session.currentUser {
-                        HStack { Spacer(); AvatarView(user: updatedPreview(from: user), size: 92); Spacer() }
+            ScrollView {
+                VStack(spacing: 16) {
+                    coverPicker
+                    avatarPicker
+                    VStack(alignment: .leading, spacing: 12) {
+                        TextField(String(localized: "profile_name"), text: $name)
+                            .textFieldStyle(.roundedBorder)
+                        TextField(String(localized: "profile_username"), text: $username)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .textFieldStyle(.roundedBorder)
+                        TextField(String(localized: "profile_bio"), text: $biography, axis: .vertical)
+                            .lineLimit(3...6)
+                            .textFieldStyle(.roundedBorder)
                     }
-                    PhotosPicker(selection: $avatarItem, matching: .images) {
-                        Label("Pick avatar from gallery", systemImage: "photo")
-                    }
-                    Picker("Avatar", selection: $avatarSymbol) {
-                        ForEach(symbols, id: \.self) { Image(systemName: $0).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
+                    .padding()
+                    .background(TidePalette.elevated, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 }
-                Section("Profile") {
-                    TextField("Name", text: $name)
-                    TextField("Biography", text: $biography, axis: .vertical).lineLimit(3...6)
-                    Text("\(biography.count)/150").font(.caption).foregroundStyle(biography.count > 150 ? .red : .secondary)
-                }
+                .padding()
             }
-            .navigationTitle("Edit Profile")
+            .navigationTitle(String(localized: "profile_edit_title"))
             .scrollContentBackground(.hidden)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(String(localized: "action_cancel")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        dependencies.session.updateProfile(name: name, biography: biography, avatarSymbol: avatarSymbol, avatarImageURL: avatarImageURL)
+                    Button(String(localized: "action_save")) {
+                        dependencies.session.updateProfile(name: name, username: username, biography: biography, avatarSymbol: avatarSymbol, avatarImageURL: avatarImageURL, coverImageURL: coverImageURL)
                         dismiss()
                     }
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || biography.count > 150)
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || biography.count > 150)
                 }
             }
             .onAppear {
                 name = dependencies.session.currentUser?.name ?? ""
+                username = dependencies.session.currentUser?.username ?? ""
                 biography = dependencies.session.currentUser?.biography ?? ""
                 avatarSymbol = dependencies.session.currentUser?.avatarSymbol ?? avatarSymbol
                 avatarImageURL = dependencies.session.currentUser?.avatarImageURL
+                coverImageURL = dependencies.session.currentUser?.coverImageURL
             }
             .onChange(of: avatarItem) { item in
                 guard let item else { return }
@@ -191,14 +230,74 @@ struct EditProfileView: View {
                     }
                 }
             }
+            .onChange(of: coverItem) { item in
+                guard let item else { return }
+                Task {
+                    if let imported = try? await MediaLibrary.shared.importItems([item]) {
+                        coverImageURL = imported.first?.url
+                    }
+                }
+            }
         }
     }
 
-    private func updatedPreview(from user: User) -> User {
-        var preview = user
-        preview.avatarSymbol = avatarSymbol
-        preview.avatarImageURL = avatarImageURL
-        return preview
+    private var coverPicker: some View {
+        PhotosPicker(selection: $coverItem, matching: .images) {
+            ZStack(alignment: .bottomLeading) {
+                Group {
+                    if let coverImageURL, let image = UIImage(contentsOfFile: coverImageURL.path) {
+                        Image(uiImage: image).resizable().scaledToFill()
+                    } else {
+                        LinearGradient(colors: [TidePalette.ink.opacity(0.32), TidePalette.subtle], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    }
+                }
+                .frame(height: 170)
+                .clipped()
+                .overlay(alignment: .bottomLeading) {
+                    Text("cover_tap_to_change")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.86))
+                        .padding(12)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var avatarPicker: some View {
+        PhotosPicker(selection: $avatarItem, matching: .images) {
+            VStack(spacing: 12) {
+                AvatarView(user: previewUser, size: 96)
+                    .overlay(Circle().stroke(.white.opacity(0.25), lineWidth: 1))
+                Text("avatar_tap_to_change")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var previewUser: User {
+        User(
+            id: dependencies.session.currentUser?.id ?? UUID(),
+            name: name.isEmpty ? (dependencies.session.currentUser?.name ?? "") : name,
+            username: username.isEmpty ? (dependencies.session.currentUser?.username ?? "") : username,
+            biography: biography,
+            avatarSymbol: avatarSymbol,
+            avatarImageURL: avatarImageURL,
+            isVerified: dependencies.session.currentUser?.isVerified ?? false,
+            isAdministrator: dependencies.session.currentUser?.isAdministrator ?? false,
+            followers: dependencies.session.currentUser?.followers ?? 0,
+            following: dependencies.session.currentUser?.following ?? 0,
+            joinedAt: dependencies.session.currentUser?.joinedAt ?? .now,
+            coverSymbol: dependencies.session.currentUser?.coverSymbol ?? "water",
+            coverImageURL: coverImageURL,
+            status: dependencies.session.currentUser?.status ?? .active,
+            lastSeenAt: dependencies.session.currentUser?.lastSeenAt ?? .now,
+            isFollowing: dependencies.session.currentUser?.isFollowing ?? false,
+            isBlocked: dependencies.session.currentUser?.isBlocked ?? false
+        )
     }
 }
 
@@ -253,7 +352,7 @@ struct SettingsView: View {
                 Button("Delete Account", role: .destructive) { confirmsDeletion = true }
             }
         }
-        .navigationTitle("Settings")
+        .navigationTitle(String(localized: "settings_title"))
         .scrollContentBackground(.hidden)
         .confirmationDialog("Delete this local account?", isPresented: $confirmsDeletion, titleVisibility: .visible) {
             Button("Delete Account", role: .destructive) {
@@ -291,7 +390,7 @@ struct BlockedAccountsView: View {
                 ContentUnavailableView("No blocked accounts", systemImage: "person.crop.circle.badge.checkmark")
             }
         }
-        .navigationTitle("Blocked Accounts")
+        .navigationTitle(String(localized: "settings_blocked_accounts"))
     }
 }
 
@@ -312,6 +411,6 @@ struct ActiveSessionsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .navigationTitle("Active Sessions")
+        .navigationTitle(String(localized: "settings_active_sessions"))
     }
 }

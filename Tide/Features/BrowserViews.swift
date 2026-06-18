@@ -175,6 +175,16 @@ struct BotPlatformView: View {
     var body: some View {
         List {
             Section {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("bot_platform_title").font(.headline)
+                    Text("bot_platform_summary").font(.footnote).foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        commandChip("/newbot")
+                        commandChip("/mybots")
+                        commandChip("/setname")
+                    }
+                }
+                .padding(.vertical, 4)
                 if let docsURL {
                     NavigationLink { BrowserView(url: docsURL) } label: {
                         Label("Bot API Documentation", systemImage: "book.closed.fill")
@@ -211,6 +221,14 @@ struct BotPlatformView: View {
             case .create: CreateBotView()
             }
         }
+    }
+
+    private func commandChip(_ value: String) -> some View {
+        Text(value)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(TidePalette.subtle, in: Capsule())
     }
 
     private var bots: [BotRecord] {

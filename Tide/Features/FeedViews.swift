@@ -3,8 +3,8 @@ import SwiftUI
 
 struct FeedView: View {
     @Environment(AppDependencies.self) private var dependencies
-    @State private var selection = "For You"
-    private let sections = ["For You", "Following", "Trends", "Search"]
+    @State private var selection = "feed_for_you"
+    private let sections = ["feed_for_you", "feed_following", "feed_trends", "feed_search"]
 
     var body: some View {
         @Bindable var social = dependencies.social
@@ -12,7 +12,7 @@ struct FeedView: View {
             LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
                 StoryRail(stories: social.stories)
                 Section {
-                    if selection == "Trends" {
+                    if selection == "feed_trends" {
                         TrendsView()
                     } else if social.filteredPosts.isEmpty {
                         EmptyStateView(symbol: "text.page", title: "No posts", message: "Follow people or create the first post.")
@@ -23,17 +23,29 @@ struct FeedView: View {
                         }
                     }
                 } header: {
-                    Picker("Feed", selection: $selection) {
-                        ForEach(sections, id: \.self) { Text($0).tag($0) }
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(sections, id: \.self) { item in
+                                Button {
+                                    selection = item
+                                } label: {
+                                    Text(LocalizedStringKey(item))
+                                        .font(.caption.weight(.semibold))
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 9)
+                                        .background(selection == item ? TidePalette.ink.opacity(0.12) : TidePalette.subtle, in: Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 6)
+                        .padding(.bottom, 8)
                     }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .background(.bar)
                 }
             }
         }
-        .searchable(text: $social.query, prompt: "Posts, people and hashtags")
+        .searchable(text: $social.query, prompt: String(localized: "feed_search_prompt"))
         .refreshable { await social.refresh() }
         .navigationTitle("Tide")
         .scrollContentBackground(.hidden)
@@ -49,7 +61,7 @@ struct FeedView: View {
 
     private var filteredPosts: [Post] {
         switch selection {
-        case "Following": dependencies.social.filteredPosts.filter { $0.author.isFollowing || $0.author.id == dependencies.session.currentUser?.id }
+        case "feed_following": dependencies.social.filteredPosts.filter { $0.author.isFollowing || $0.author.id == dependencies.session.currentUser?.id }
         default: dependencies.social.filteredPosts
         }
     }
@@ -72,7 +84,7 @@ struct StoryRail: View {
                                 .foregroundStyle(TidePalette.inverse, TidePalette.ink)
                                 .background(TidePalette.paper, in: Circle())
                         }
-                        Text("Your story").font(.caption).lineLimit(1).frame(width: 68)
+                        Text(String(localized: "story_your")).font(.caption).lineLimit(1).frame(width: 68)
                     }
                 }
                 .buttonStyle(.plain)
@@ -182,28 +194,59 @@ struct ComposerView: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextEditor(text: $bodyText)
-                    .frame(minHeight: 180)
-                    .font(TideTypography.body)
-                if !selectedMedia.isEmpty { ComposerMediaStrip(media: selectedMedia, remove: removeMedia) }
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            AvatarView(user: dependencies.session.currentUser ?? User(id: UUID(), name: "Tide", username: "tide", biography: "", avatarSymbol: "person.crop.circle.fill", isVerified: false, isAdministrator: false, followers: 0, following: 0, joinedAt: .now, coverSymbol: "water"), size: 38)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("new_post_identity")
+                                    .font(.caption).foregroundStyle(.secondary)
+                                Text(dependencies.session.currentUser?.handle ?? "@tide")
+                                    .font(.subheadline.weight(.semibold))
+                            }
+                            Spacer()
+                            TextField(String(localized: "new_post_location"), text: $location)
+                                .frame(width: 120)
+                                .textInputAutocapitalization(.never)
+                        }
+                        ZStack(alignment: .topLeading) {
+                            if bodyText.isEmpty {
+                                Text("new_post_placeholder")
+                                    .foregroundStyle(.secondary)
+                                    .padding(.top, 8)
+                                    .padding(.leading, 5)
+                            }
+                            TextEditor(text: $bodyText)
+                                .frame(minHeight: 160)
+                                .scrollContentBackground(.hidden)
+                        }
+                        if !selectedMedia.isEmpty { ComposerMediaStrip(media: selectedMedia, remove: removeMedia) }
+                        HStack(spacing: 10) {
+                            actionTile(symbol: "photo.on.rectangle", title: "new_post_media")
+                            actionTile(symbol: "location.fill", title: "new_post_location")
+                            actionTile(symbol: "clock.badge.checkmark", title: "new_post_schedule")
+                        }
+                    }
+                } header: {
+                    EmptyView()
+                }
+                Section {
+                    PhotosPicker(selection: $selectedItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos])) {
+                        Label("new_post_add_media", systemImage: "photo.on.rectangle")
+                    }
+                    if isImporting { ProgressView("Importing media") }
+                }
                 Picker("Visibility", selection: $visibility) {
                     ForEach(PostVisibility.allCases) { Text($0.title).tag($0) }
                 }
-                Section("Add") {
-                    PhotosPicker(selection: $selectedItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos])) {
-                        Label("Photo or video", systemImage: "photo.on.rectangle")
-                    }
-                    TextField("Location", text: $location)
-                    if isImporting { ProgressView("Importing media") }
-                }
             }
-            .navigationTitle("New Post")
+            .navigationTitle(String(localized: "new_post_title"))
             .navigationBarTitleDisplayMode(.inline)
             .scrollContentBackground(.hidden)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(String(localized: "action_cancel")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Post", action: publish)
+                    Button(String(localized: "new_post_publish"), action: publish)
                         .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedMedia.isEmpty)
                 }
             }
@@ -217,6 +260,18 @@ struct ComposerView: View {
             }
             .onDisappear { saveDraftIfNeeded() }
         }
+    }
+
+    private func actionTile(symbol: String, title: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.title3)
+            Text(LocalizedStringKey(title))
+                .font(.caption2.weight(.semibold))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(TidePalette.subtle, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func publish() {

@@ -27,6 +27,15 @@ struct MainTabView: View {
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
             .font: UIFont.systemFont(ofSize: 10, weight: .semibold)
         ]
+        appearance.inlineLayoutAppearance.normal.titleTextAttributes = [
+            .font: UIFont.systemFont(ofSize: 10, weight: .semibold)
+        ]
+        appearance.inlineLayoutAppearance.selected.titleTextAttributes = [
+            .font: UIFont.systemFont(ofSize: 10, weight: .semibold)
+        ]
+        UITabBar.appearance().itemPositioning = .automatic
+        UITabBar.appearance().itemWidth = 72
+        UITabBar.appearance().itemSpacing = 10
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
     }
