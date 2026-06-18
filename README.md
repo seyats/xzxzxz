@@ -39,4 +39,6 @@ Open Settings → Developers → Tide Bot API. The bundled black-and-white HTML 
 
 `Tide/Resources/SeedContent.json` is now an empty fixture by default so the app starts without demo posts. Regenerate it with `Tools/GenerateSeedContent.ps1` only if you need a local test catalogue.
 
+For a GitHub artifact without certificates, run `.github/workflows/unsigned-ipa.yml`. It archives with `CODE_SIGNING_ALLOWED=NO` and packages the app bundle into `Tide-unsigned.ipa`. This is useful for local device flows, QA, and internal testing. Signed distribution still uses `.github/workflows/release-ipa.yml`.
+
 Never commit Apple certificates, provisioning profiles, APNs keys, bot tokens, backend secrets or production access tokens.

@@ -1,0 +1,39 @@
+name: Build Unsigned IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Marketing version
+        required: true
+        default: 1.0.0
+      build_number:
+        description: Build number
+        required: true
+        default: "1"
+
+jobs:
+  ipa:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      MARKETING_VERSION: ${{ inputs.version }}
+      CURRENT_PROJECT_VERSION: ${{ inputs.build_number }}
+      PRODUCT_BUNDLE_IDENTIFIER: com.tide.app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build unsigned IPA
+        run: bash Tools/build-unsigned-ipa.sh
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tide-unsigned-${{ inputs.version }}-${{ inputs.build_number }}
+          path: build/export/Tide-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
