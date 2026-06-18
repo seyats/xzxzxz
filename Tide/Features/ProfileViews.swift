@@ -183,7 +183,7 @@ struct EditProfileView: View {
                 avatarSymbol = dependencies.session.currentUser?.avatarSymbol ?? avatarSymbol
                 avatarImageURL = dependencies.session.currentUser?.avatarImageURL
             }
-            .onChange(of: avatarItem) { _, item in
+            .onChange(of: avatarItem) { item in
                 guard let item else { return }
                 Task {
                     if let imported = try? await MediaLibrary.shared.importItems([item]) {

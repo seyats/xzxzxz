@@ -316,7 +316,7 @@ final class SocialStore {
     }
 
     private static func tokens(in text: String, prefix: Character) -> [String] {
-        text.split(whereSeparator: \.isWhitespace)
+        text.split(whereSeparator: { $0.isWhitespace })
             .map(String.init)
             .filter { $0.first == prefix && $0.count > 1 }
             .map { String($0.dropFirst()).trimmingCharacters(in: .punctuationCharacters) }
@@ -714,8 +714,16 @@ final class PreferencesStore {
                 opacity: 1
             )
         }
+        let style: TideBackdropConfiguration.Style = switch backdropStyle {
+        case .automatic: .automatic
+        case .black: .black
+        case .white: .white
+        case .authImage: .image
+        case .image: .image
+        case .video: .video
+        }
         return TideBackdropConfiguration(
-            style: backdropStyle,
+            style: style,
             resourceName: backdropResourceName,
             videoURLString: backdropVideoURLString,
             opacity: backdropOpacity

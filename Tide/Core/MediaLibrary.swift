@@ -3,6 +3,7 @@ import Foundation
 import ImageIO
 import PhotosUI
 import UniformTypeIdentifiers
+import SwiftUI
 
 struct ComposerMedia: Identifiable, Hashable, Sendable {
     let id: UUID

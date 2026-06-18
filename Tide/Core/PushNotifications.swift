@@ -56,10 +56,6 @@ final class PushNotificationService {
         Task { await refreshAuthorizationStatus() }
     }
 
-    deinit {
-        observers.forEach(NotificationCenter.default.removeObserver)
-    }
-
     func requestAuthorization() async {
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound, .provisional])

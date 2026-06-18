@@ -130,7 +130,7 @@ struct StoryComposerView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Publish", action: publish).disabled(media == nil || isLoading) }
             }
-            .onChange(of: selectedItem) { _, item in
+            .onChange(of: selectedItem) { item in
                 guard let item else { return }
                 Task {
                     isLoading = true

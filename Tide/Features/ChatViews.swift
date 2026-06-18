@@ -120,7 +120,7 @@ struct ConversationView: View {
                 }
             }
             .task { dependencies.messenger.markRead(chatID) }
-            .onChange(of: selectedItem) { _, item in
+            .onChange(of: selectedItem) { item in
                 guard let item else { return }
                 Task {
                     if let imported = try? await MediaLibrary.shared.importItems([item]) {

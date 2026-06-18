@@ -244,9 +244,7 @@ struct AuthenticationView: View {
     private func startGoogleSignIn() {
         if let baseURL = ServerConfiguration.current.apiBaseURL {
             let url = baseURL.appendingPathComponent("auth/google/start")
-            if !openURL(url) {
-                alertMessage = String(localized: "auth_google_message")
-            }
+            _ = openURL(url)
         } else {
             showGoogleInfo = true
         }
