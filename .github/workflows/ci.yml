@@ -23,9 +23,7 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
-        run: |
-          swift Tools/GenerateAppIcon.swift
-          xcodegen generate
+        run: xcodegen generate
       - name: Build and test
         run: bash Tools/ci-test.sh
       - name: Upload test results

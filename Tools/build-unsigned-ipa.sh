@@ -7,7 +7,6 @@ CURRENT_PROJECT_VERSION="${CURRENT_PROJECT_VERSION:-1}"
 rm -rf build/archive build/export build/unsigned
 mkdir -p build/archive build/export build/unsigned/Payload
 
-swift Tools/GenerateAppIcon.swift
 xcodegen generate
 
 xcodebuild \

@@ -11,7 +11,6 @@ EXPORT_METHOD="${EXPORT_METHOD:-app-store-connect}"
 
 rm -rf build/archive build/export
 mkdir -p build/archive build/export
-swift Tools/GenerateAppIcon.swift
 xcodegen generate
 
 xcodebuild \
