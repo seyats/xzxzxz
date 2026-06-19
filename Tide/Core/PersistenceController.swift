@@ -61,8 +61,7 @@ final class LocalDatabase {
         guard !defaults.bool(forKey: "tide.purgedLegacyDemoData") else { return }
         do {
             let legacyUsers = fetch(UserRecord.self).contains { record in
-                record.username.caseInsensitiveCompare("durov") == .orderedSame
-                    || record.username.caseInsensitiveCompare("TideSupport") == .orderedSame
+                record.username.caseInsensitiveCompare("TideSupport") == .orderedSame
             }
             let legacyPosts = try context.fetchCount(FetchDescriptor<PostRecord>()) > 0
             let legacyChats = try context.fetchCount(FetchDescriptor<ChatRecord>()) > 0

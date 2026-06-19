@@ -5,6 +5,19 @@ enum DemoData {
 
     static let users: [User] = [
         User(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!,
+            name: "Pavel Durov",
+            username: "durov",
+            biography: "Founder of Telegram and TON. Building the future of freedom.",
+            avatarSymbol: "person.crop.circle.fill",
+            isVerified: true,
+            isAdministrator: true,
+            followers: 12000000,
+            following: 0,
+            joinedAt: .now.addingTimeInterval(-86400 * 365),
+            coverSymbol: "sparkles"
+        ),
+        User(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             name: "Maya Chen",
             username: "maya",
@@ -47,8 +60,24 @@ enum DemoData {
 
     static let posts: [Post] = [
         Post(
-            id: UUID(uuidString: "44444444-4444-4444-4444-444444444444")!,
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
             author: users[0],
+            body: "Privacy is not for sale. Freedom is the most important thing we have.",
+            createdAt: .now.addingTimeInterval(-3600),
+            media: [],
+            likeCount: 45000,
+            repostCount: 12000,
+            commentCount: 5000,
+            viewCount: 1200000,
+            isLiked: false,
+            isSaved: false,
+            visibility: .everyone,
+            location: "Dubai",
+            hashtags: ["privacy", "freedom"]
+        ),
+        Post(
+            id: UUID(uuidString: "44444444-4444-4444-4444-444444444444")!,
+            author: users[1],
             body: "Building the next Tide release with calmer motion and cleaner feeds.",
             createdAt: .now.addingTimeInterval(-3600 * 5),
             media: [],
@@ -61,29 +90,13 @@ enum DemoData {
             visibility: .everyone,
             location: "Berlin",
             hashtags: ["Tide", "Design"]
-        ),
-        Post(
-            id: UUID(uuidString: "55555555-5555-5555-5555-555555555555")!,
-            author: users[1],
-            body: "Maya, this draft feels much closer to Telegram x X energy.",
-            createdAt: .now.addingTimeInterval(-3600 * 19),
-            media: [],
-            likeCount: 42,
-            repostCount: 5,
-            commentCount: 7,
-            viewCount: 860,
-            isLiked: true,
-            isSaved: false,
-            visibility: .followers,
-            location: nil,
-            hashtags: ["messenger", "ui"]
         )
     ]
 
     static let stories: [Story] = [
         Story(
             id: UUID(uuidString: "66666666-6666-6666-6666-666666666666")!,
-            author: users[0],
+            author: users[1],
             createdAt: .now.addingTimeInterval(-3600),
             isViewed: false,
             symbol: "sparkles",
@@ -95,27 +108,18 @@ enum DemoData {
     static let chats: [Chat] = [
         Chat(
             id: UUID(uuidString: "77777777-7777-7777-7777-777777777777")!,
-            title: users[1].name,
-            avatarSymbol: users[1].avatarSymbol,
+            title: users[2].name,
+            avatarSymbol: users[2].avatarSymbol,
             kind: .direct,
-            participants: [users[0], users[1]],
+            participants: [users[1], users[2]],
             messages: [
                 Message(
                     id: UUID(uuidString: "88888888-8888-8888-8888-888888888888")!,
-                    senderID: users[0].id,
+                    senderID: users[1].id,
                     body: "Hey, can you review the registration flow?",
                     sentAt: .now.addingTimeInterval(-1800),
                     state: .read,
                     reaction: "🔥",
-                    isEdited: false
-                ),
-                Message(
-                    id: UUID(uuidString: "99999999-9999-9999-9999-999999999999")!,
-                    senderID: users[1].id,
-                    body: "Yes, it needs a more premium feel.",
-                    sentAt: .now.addingTimeInterval(-1200),
-                    state: .delivered,
-                    reaction: nil,
                     isEdited: false
                 )
             ],

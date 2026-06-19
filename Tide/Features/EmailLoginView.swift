@@ -52,7 +52,9 @@ struct EmailLoginView: View {
     
     // MARK: - Actions
     private func handleSignIn() {
-        // Логика входа
+        Task {
+            await dependencies.session.signInEmail(email: email, password: password)
+        }
     }
 }
 

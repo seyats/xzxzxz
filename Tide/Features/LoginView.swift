@@ -78,74 +78,50 @@ private struct SocialAuthSection: View {
             if #available(iOS 26.0, *) {
                 GlassEffectContainer(spacing: 16) {
                     HStack(spacing: 16) {
-                        SocialButton(icon: "github", namespace: namespace)
-                        SocialButton(icon: "google", namespace: namespace)
-                        SocialButton(icon: "apple.logo", namespace: namespace)
+                        SocialButton(icon: .github, namespace: namespace)
+                        SocialButton(icon: .google, namespace: namespace)
+                        SocialButton(icon: .apple, namespace: namespace)
                     }
                 }
             } else {
                 HStack(spacing: 16) {
-                    SocialButtonFallback(icon: "github")
-                    SocialButtonFallback(icon: "google")
-                    SocialButtonFallback(icon: "apple.logo")
+                    SocialButtonFallback(icon: .github)
+                    SocialButtonFallback(icon: .google)
+                    SocialButtonFallback(icon: .apple)
                 }
             }
         }
     }
 }
 
+enum SocialBrand {
+    case google, github, apple
+}
+
 @available(iOS 17.0, *)
 private struct SocialButton: View {
-    let icon: String
+    let icon: SocialBrand
     let namespace: Namespace.ID
-    
-    var iconURL: URL {
-        let bundle = Bundle.main
-        switch icon {
-        case "github":
-            return bundle.url(forResource: "github_logo", withExtension: "svg") ?? URL(string: "about:blank")!
-        case "google":
-            return bundle.url(forResource: "google_logo", withExtension: "svg") ?? URL(string: "about:blank")!
-        case "apple.logo":
-            return bundle.url(forResource: "apple_logo", withExtension: "svg") ?? URL(string: "about:blank")!
-        default:
-            return URL(string: "about:blank")!
-        }
-    }
     
     var body: some View {
         Button(action: {}) {
-            SVGRemoteView(url: iconURL)
+            BrandIcon(brand: icon)
                 .frame(width: 24, height: 24)
                 .frame(width: 54, height: 54)
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
-        .glassEffectID(icon, in: namespace)
+        .glassEffectID("\(icon)", in: namespace)
     }
 }
 
 @available(iOS 17.0, *)
 private struct SocialButtonFallback: View {
-    let icon: String
-    
-    var iconURL: URL {
-        let bundle = Bundle.main
-        switch icon {
-        case "github":
-            return bundle.url(forResource: "github_logo", withExtension: "svg") ?? URL(string: "about:blank")!
-        case "google":
-            return bundle.url(forResource: "google_logo", withExtension: "svg") ?? URL(string: "about:blank")!
-        case "apple.logo":
-            return bundle.url(forResource: "apple_logo", withExtension: "svg") ?? URL(string: "about:blank")!
-        default:
-            return URL(string: "about:blank")!
-        }
-    }
+    let icon: SocialBrand
     
     var body: some View {
         Button(action: {}) {
-            SVGRemoteView(url: iconURL)
+            BrandIcon(brand: icon)
                 .frame(width: 24, height: 24)
                 .frame(width: 54, height: 54)
                 .background(Color(white: 0.1).opacity(0.8))
@@ -154,6 +130,32 @@ private struct SocialButtonFallback: View {
                     RoundedRectangle(cornerRadius: 14)
                         .stroke(Color(white: 0.2), lineWidth: 0.5)
                 )
+        }
+    }
+}
+
+@available(iOS 17.0, *)
+private struct BrandIcon: View {
+    let brand: SocialBrand
+    
+    var body: some View {
+        switch brand {
+        case .google:
+            // Google Logo (G)
+            ZStack {
+                Circle().fill(.white).frame(width: 24, height: 24)
+                Image(systemName: "g.circle.fill")
+                    .resizable()
+                    .foregroundColor(.blue)
+            }
+        case .github:
+            Image(systemName: "github.logo") // Fallback to SF Symbols if SVG fails, but let's use a custom shape
+                .resizable()
+                .foregroundColor(.white)
+        case .apple:
+            Image(systemName: "apple.logo")
+                .resizable()
+                .foregroundColor(.white)
         }
     }
 }
@@ -236,11 +238,5 @@ private struct FooterSection: View {
         }
         .font(.system(size: 14))
         .padding(.bottom, 32)
-    }
-}
-
-#Preview {
-    if #available(iOS 17.0, *) {
-        LoginView()
     }
 }
