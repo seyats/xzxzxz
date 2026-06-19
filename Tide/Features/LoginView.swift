@@ -58,7 +58,7 @@ private struct HeaderSection: View {
             
             VStack(spacing: 8) {
                 Text("Welcome back")
-                    .font(.system(size: 34, weight: .bold, design: .default))
+                    .font(TideTypography.brandMedium)
                     .foregroundColor(.white)
                 
                 Text("Sign in to continue")
@@ -94,7 +94,7 @@ private struct SocialAuthSection: View {
     }
 }
 
-enum SocialBrand {
+enum SocialBrand: String, CaseIterable {
     case google, github, apple
 }
 

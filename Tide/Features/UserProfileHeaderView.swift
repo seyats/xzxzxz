@@ -4,23 +4,22 @@ import SwiftUI
 @available(iOS 17.0, *)
 struct UserProfileHeaderView: View {
     let user: User
-    let isVerified: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                Text(user.displayName)
+                Text(user.name)
                     .font(.system(size: 20, weight: .semibold, design: .default))
                     .foregroundColor(.white)
                 
-                if isVerified {
+                if user.isVerified {
                     VerificationBadge()
                 }
                 
                 Spacer()
             }
             
-            if isVerified {
+            if user.isVerified {
                 Text("Account verified")
                     .font(.system(size: 12, weight: .regular, design: .default))
                     .foregroundColor(.gray)
@@ -43,18 +42,17 @@ private struct VerificationBadge: View {
 }
 
 #Preview {
-    @Previewable @State var previewUser = User(
+    UserProfileHeaderView(user: User(
         id: UUID(),
-        displayName: "Pavel Durov",
+        name: "Pavel Durov",
         username: "durov",
         biography: "Founder of Telegram",
-        avatarURL: nil,
-        coverImageURL: nil,
-        followerCount: 1000000,
-        followingCount: 100,
-        createdAt: Date()
-    )
-    
-    UserProfileHeaderView(user: previewUser, isVerified: true)
-        .background(Color.black)
+        avatarSymbol: "person.fill",
+        isVerified: true,
+        isAdministrator: true,
+        followers: 1000000,
+        following: 100,
+        joinedAt: Date()
+    ))
+    .background(Color.black)
 }

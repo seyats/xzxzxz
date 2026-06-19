@@ -93,7 +93,7 @@ private struct HeaderSection: View {
             
             VStack(alignment: .leading, spacing: 8) {
                 Text("Welcome back")
-                    .font(.system(size: 34, weight: .bold, design: .default))
+                    .font(TideTypography.brandMedium)
                     .foregroundColor(.white)
                 
                 Text("Sign in to continue")
@@ -302,9 +302,7 @@ private struct SocialSection: View {
     }
 }
 
-enum SocialBrand {
-    case google, github, apple
-}
+// SocialBrand is defined in LoginView.swift
 
 @available(iOS 17.0, *)
 private struct SocialCircleButton: View {
