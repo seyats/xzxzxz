@@ -25,7 +25,9 @@ struct TideApp: App {
         WindowGroup {
             ZStack {
                 TideBackdropView(configuration: dependencies.preferences.backdropConfiguration())
-                AppRootView()
+                NavigationView {
+                    AppRootView()
+                }
             }
             .environment(dependencies)
             .modelContainer(dependencies.database.container)
