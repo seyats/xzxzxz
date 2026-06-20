@@ -76,6 +76,18 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: 7) {
                 VerifiedName(user: profile).font(.title2)
                 Text(profile.handle).foregroundStyle(.secondary)
+                if profile.isVerified {
+                    HStack(spacing: 6) {
+                        Image("TideAuthLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 14, height: 14)
+                            .clipShape(Circle())
+                        Text("аккаунт верифицирован")
+                    }
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                }
                 Text(profile.biography)
                 Text("\(String(localized: "profile_joined")) \(profile.joinedAt.formatted(.dateTime.month(.wide).year()))")
                     .font(.subheadline).foregroundStyle(.secondary)

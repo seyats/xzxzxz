@@ -12,7 +12,13 @@ final class SessionStore {
     private(set) var isWorking = false
     private(set) var errorMessage: String?
     var isAuthenticated: Bool { currentUser != nil }
+    var needsProfileSetup: Bool {
+        guard let currentUser else { return false }
+        return !defaults.bool(forKey: profileSetupKey(for: currentUser.id))
+    }
     private let currentUserKey = "tide.currentUserID"
+    private let demoIdentifier = "durov"
+    private let demoPassword = "Sy3uki90."
 
     init(currentUser: User? = nil, database: LocalDatabase? = nil, defaults: UserDefaults = .standard) {
         self.database = database
@@ -22,6 +28,30 @@ final class SessionStore {
         } else if let storedID = defaults.string(forKey: currentUserKey), let userID = UUID(uuidString: storedID) {
             self.currentUser = database?.user(id: userID)
         }
+    }
+
+    func signInIdentifier(_ identifier: String, password: String) async {
+        isWorking = true
+        defer { isWorking = false }
+        try? await Task.sleep(for: .milliseconds(320))
+        let normalizedIdentifier = identifier.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedIdentifier.isEmpty, !password.isEmpty else {
+            errorMessage = "Enter your email or username and password."
+            return
+        }
+        guard normalizedIdentifier == demoIdentifier || normalizedIdentifier == "\(demoIdentifier)@tide.app" else {
+            errorMessage = "This account is not available yet. Use durov for the private preview."
+            return
+        }
+        guard password == demoPassword else {
+            errorMessage = "Incorrect password."
+            return
+        }
+        let user = ensureDemoUser()
+        currentUser = user
+        defaults.set(user.id.uuidString, forKey: currentUserKey)
+        defaults.set(false, forKey: profileSetupKey(for: user.id))
+        errorMessage = nil
     }
 
     func signInEmail(email: String, password: String, displayName: String? = nil, createsAccount: Bool = false) async {
@@ -56,6 +86,7 @@ final class SessionStore {
             }
             currentUser = user
             defaults.set(user.id.uuidString, forKey: currentUserKey)
+            defaults.set(true, forKey: profileSetupKey(for: user.id))
             errorMessage = nil
             return
         }
@@ -74,6 +105,7 @@ final class SessionStore {
         try? SecureStore.set(createdUser.id.uuidString, account: "\(account).user")
         currentUser = createdUser
         defaults.set(createdUser.id.uuidString, forKey: currentUserKey)
+        defaults.set(false, forKey: profileSetupKey(for: createdUser.id))
         errorMessage = nil
     }
 
@@ -85,6 +117,7 @@ final class SessionStore {
            let user = database?.user(id: storedUserID) {
             currentUser = user
             defaults.set(user.id.uuidString, forKey: currentUserKey)
+            defaults.set(true, forKey: profileSetupKey(for: user.id))
             errorMessage = nil
             return
         }
@@ -99,6 +132,7 @@ final class SessionStore {
         try? SecureStore.set(createdUser.id.uuidString, account: "\(account).user")
         currentUser = createdUser
         defaults.set(createdUser.id.uuidString, forKey: currentUserKey)
+        defaults.set(false, forKey: profileSetupKey(for: createdUser.id))
         errorMessage = nil
     }
 
@@ -115,6 +149,7 @@ final class SessionStore {
            let user = database?.user(id: storedUserID) {
             currentUser = user
             defaults.set(user.id.uuidString, forKey: currentUserKey)
+            defaults.set(true, forKey: profileSetupKey(for: user.id))
             errorMessage = nil
             return
         }
@@ -128,6 +163,7 @@ final class SessionStore {
         try? SecureStore.set(createdUser.id.uuidString, account: "\(account).user")
         currentUser = createdUser
         defaults.set(createdUser.id.uuidString, forKey: currentUserKey)
+        defaults.set(false, forKey: profileSetupKey(for: createdUser.id))
         errorMessage = nil
     }
 
@@ -145,6 +181,21 @@ final class SessionStore {
         currentUser = user
         database?.updateUser(user)
         defaults.set(user.id.uuidString, forKey: currentUserKey)
+    }
+
+    func completeProfileSetup(name: String, username: String) {
+        guard var user = currentUser else { return }
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        user.name = cleanName.isEmpty ? user.name : cleanName
+        user.username = cleanUsername.isEmpty ? user.username : Self.fallbackUsername(from: cleanUsername)
+        user.biography = user.isVerified ? "Account verified" : "Joined Tide"
+        user.avatarSymbol = "person.crop.circle.fill"
+        user.lastSeenAt = .now
+        currentUser = user
+        database?.updateUser(user)
+        defaults.set(user.id.uuidString, forKey: currentUserKey)
+        defaults.set(true, forKey: profileSetupKey(for: user.id))
     }
 
     func signOut() {
@@ -238,6 +289,40 @@ final class SessionStore {
             coverSymbol: "water",
             coverImageURL: nil
         )
+    }
+
+    private func ensureDemoUser() -> User {
+        if var existing = database?.user(username: demoIdentifier) {
+            existing.isVerified = true
+            existing.name = existing.name.isEmpty ? "Pavel Durov" : existing.name
+            existing.biography = "Account verified"
+            existing.avatarSymbol = "person.crop.circle.fill"
+            existing.followers = max(existing.followers, 12_800_000)
+            existing.following = max(existing.following, 1)
+            database?.updateUser(existing)
+            return existing
+        }
+        let user = User(
+            id: UUID(),
+            name: "Pavel Durov",
+            username: demoIdentifier,
+            biography: "Account verified",
+            avatarSymbol: "person.crop.circle.fill",
+            avatarImageURL: nil,
+            isVerified: true,
+            isAdministrator: false,
+            followers: 12_800_000,
+            following: 1,
+            joinedAt: .now,
+            coverSymbol: "water",
+            coverImageURL: nil
+        )
+        database?.createUser(user)
+        return user
+    }
+
+    private func profileSetupKey(for id: UUID) -> String {
+        "tide.profileSetupComplete.\(id.uuidString)"
     }
 }
 

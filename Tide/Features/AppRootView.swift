@@ -9,7 +9,7 @@ struct AppRootView: View {
         if dependencies.session.isAuthenticated {
             MainTabView()
         } else {
-            AuthenticationView()
+            PremiumAuthenticationView()
         }
     }
 }

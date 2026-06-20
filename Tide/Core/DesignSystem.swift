@@ -37,7 +37,13 @@ struct AvatarView: View {
     var body: some View {
         ZStack {
             Circle().fill(.primary.opacity(0.08))
-            if let url = user.avatarImageURL,
+            if user.username.caseInsensitiveCompare("durov") == .orderedSame {
+                Image("TideAuthLogo")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: size, height: size)
+                    .clipShape(Circle())
+            } else if let url = user.avatarImageURL,
                let image = UIImage(contentsOfFile: url.path) {
                 Image(uiImage: image)
                     .resizable()
@@ -62,8 +68,12 @@ struct VerifiedName: View {
         HStack(spacing: 4) {
             Text(user.name).fontWeight(.semibold)
             if user.isVerified {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(TidePalette.success)
+                Image("TideAuthLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(.primary.opacity(0.18), lineWidth: 0.5))
                     .accessibilityLabel("Verified")
             }
         }
