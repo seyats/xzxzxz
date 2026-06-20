@@ -11,7 +11,6 @@ struct PremiumAuthenticationView: View {
     @State private var passwordVisible = false
     @State private var isLoading = false
     @State private var alertMessage: String?
-    @Namespace private var logoNamespace
 
     private enum AuthStage { case landing, credentials }
     private enum Field { case identifier, password }
@@ -34,7 +33,7 @@ struct PremiumAuthenticationView: View {
         .preferredColorScheme(.dark)
         .ignoresSafeArea()
         .alert("Sign in", isPresented: Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })) {
-            Button("OK", role: .cancel) {}
+            Button("OK", role: .cancel) { }
         } message: {
             Text(alertMessage ?? "")
         }
@@ -45,18 +44,17 @@ struct PremiumAuthenticationView: View {
             Spacer(minLength: 58)
 
             AuthChromeLogo(size: 142)
-                .matchedGeometryEffect(id: "logo", in: logoNamespace)
-                .padding(.bottom, 8)
+                .padding(.bottom, 10)
 
             VStack(spacing: 8) {
                 Text("Welcome back")
-                    .font(.system(size: 32, weight: .semibold))
+                    .font(TideTypography.brand(32))
                     .foregroundStyle(.white)
                 Text("Sign in to continue")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white.opacity(0.48))
             }
-            .padding(.top, 28)
+            .padding(.top, 20)
 
             HStack(spacing: 12) {
                 AuthSocialGlassButton(kind: .github, svgName: "github") {
@@ -112,7 +110,7 @@ struct PremiumAuthenticationView: View {
 
             VStack(spacing: 8) {
                 Text("Welcome back")
-                    .font(.system(size: 33, weight: .semibold))
+                    .font(TideTypography.brand(33))
                     .foregroundStyle(.white)
                 Text("Sign in to continue")
                     .font(.system(size: 13, weight: .medium))
@@ -191,7 +189,7 @@ struct PremiumAuthenticationView: View {
             Spacer()
 
             AuthFooter(prefix: "No account?", action: "Sign up") {
-                setPlaceholder("Sign up will be added after the private preview.")
+                setPlaceholder("Регистрация появится после приватного preview.")
             }
             .padding(.bottom, 34)
         }
@@ -311,11 +309,7 @@ struct AuthProfileSetupView: View {
 
                 if dependencies.session.currentUser?.isVerified == true {
                     HStack(spacing: 8) {
-                        Image("TideAuthLogo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 18, height: 18)
-                            .clipShape(Circle())
+                        TideBrandLogoView(size: 18, style: .circle)
                         Text("аккаунт верифицирован")
                             .font(.caption.weight(.medium))
                     }
@@ -359,9 +353,18 @@ struct AuthBlackBackdrop: View {
     var body: some View {
         ZStack {
             Color.black
-            RadialGradient(colors: [.white.opacity(0.12), .clear], center: .top, startRadius: 8, endRadius: 380)
-            LinearGradient(colors: [.white.opacity(0.055), .clear, .white.opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                .blur(radius: 18)
+            LinearGradient(
+                colors: [
+                    .black,
+                    .white.opacity(0.06),
+                    .black,
+                    .white.opacity(0.03)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .blur(radius: 30)
+            .opacity(0.8)
         }
     }
 }
@@ -383,11 +386,7 @@ struct AuthChromeLogo: View {
                 .shadow(color: .white.opacity(0.14), radius: 28, y: -10)
                 .shadow(color: .black.opacity(0.75), radius: 30, y: 18)
 
-            Image("TideAuthLogo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: size * 0.74, height: size * 0.74)
-                .clipShape(RoundedRectangle(cornerRadius: size * 0.18, style: .continuous))
+            TideBrandLogoView(size: size * 0.74, style: .rounded(size * 0.18))
                 .overlay {
                     RoundedRectangle(cornerRadius: size * 0.18, style: .continuous)
                         .stroke(.white.opacity(0.18), lineWidth: 0.7)
@@ -424,9 +423,7 @@ struct AuthCompactButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button {
-            action()
-        } label: {
+        Button(action: action) {
             HStack(spacing: 10) {
                 Text(title)
                 Image(systemName: systemImage)
@@ -494,9 +491,7 @@ struct AuthSocialGlassButton: View {
     private var cornerRadius: CGFloat { shape == .circle ? 24 : 17 }
 
     var body: some View {
-        Button {
-            action()
-        } label: {
+        Button(action: action) {
             ZStack {
                 AuthGlassBackground(cornerRadius: cornerRadius, interactive: true)
                 BrandSVG(name: svgName)
@@ -558,8 +553,8 @@ struct BrandSVG: View {
             SVGRemoteView(url: url)
                 .allowsHitTesting(false)
         } else {
-            Image(systemName: "questionmark")
-                .foregroundStyle(.white.opacity(0.7))
+            Image(systemName: "circle.fill")
+                .foregroundStyle(.white.opacity(0.5))
         }
     }
 }
@@ -573,9 +568,7 @@ struct AuthFooter: View {
         HStack(spacing: 4) {
             Text(prefix)
                 .foregroundStyle(.white.opacity(0.42))
-            Button {
-                tap()
-            } label: {
+            Button(action: tap) {
                 Text(action)
             }
             .foregroundStyle(.white.opacity(0.82))

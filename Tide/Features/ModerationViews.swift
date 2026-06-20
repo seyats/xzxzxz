@@ -224,12 +224,12 @@ struct AdminView: View {
             LabeledContent("Локальная база", value: dependencies.database.lastError == nil ? "ОК" : "Ошибка")
             LabeledContent("Постоянные модели", value: "14")
             LabeledContent("События аудита", value: dependencies.database.auditEvents().count.formatted())
-            LabeledContent("Режим сервера", value: ServerConfiguration.current.isRemoteEnabled ? "Удалённый + офлайн" : "Офлайн")
+            LabeledContent("Режим сервера", value: ServerConfiguration.current.isRemoteEnabled ? "Удалённый" : "Локальный")
         }
     }
 
     private var connectionText: String {
-        dependencies.messenger.connectionState == .connected ? "Подключено" : "Офлайн"
+        dependencies.messenger.connectionState == .connected ? "Подключено" : "Нет связи"
     }
 
     private var weeklyActivity: [ActivityPoint] {

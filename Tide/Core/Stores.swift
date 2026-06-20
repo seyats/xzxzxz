@@ -167,13 +167,28 @@ final class SessionStore {
         errorMessage = nil
     }
 
-    func updateProfile(name: String, username: String? = nil, biography: String, avatarSymbol: String? = nil, avatarImageURL: URL? = nil, coverImageURL: URL? = nil) {
+    func updateProfile(
+        name: String,
+        username: String? = nil,
+        biography: String,
+        location: String? = nil,
+        website: String? = nil,
+        birthday: Date? = nil,
+        avatarSymbol: String? = nil,
+        avatarImageURL: URL? = nil,
+        coverImageURL: URL? = nil
+    ) {
         guard var user = currentUser else { return }
         user.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if let username {
             user.username = Self.fallbackUsername(from: username)
         }
         user.biography = biography.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanLocation = location?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanWebsite = website?.trimmingCharacters(in: .whitespacesAndNewlines)
+        user.location = cleanLocation?.isEmpty == true ? nil : cleanLocation
+        user.website = cleanWebsite?.isEmpty == true ? nil : cleanWebsite
+        user.birthday = birthday
         if let avatarSymbol { user.avatarSymbol = avatarSymbol }
         user.avatarImageURL = avatarImageURL
         user.coverImageURL = coverImageURL

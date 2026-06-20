@@ -1,4 +1,5 @@
 import Combine
+import CoreText
 import SwiftData
 import SwiftUI
 import UIKit
@@ -18,6 +19,7 @@ struct TideApp: App {
         UINavigationBar.appearance().scrollEdgeAppearance = navigationAppearance
         UINavigationBar.appearance().standardAppearance = navigationAppearance
         let database = LocalDatabase()
+        TideFontRegistry.registerIfNeeded()
         _dependencies = State(initialValue: AppDependencies(database: database))
     }
 
@@ -25,9 +27,7 @@ struct TideApp: App {
         WindowGroup {
             ZStack {
                 TideBackdropView(configuration: dependencies.preferences.backdropConfiguration())
-                NavigationView {
-                    AppRootView()
-                }
+                AppRootView()
             }
             .environment(dependencies)
             .modelContainer(dependencies.database.container)
@@ -80,5 +80,16 @@ final class AppDependencies {
         push = PushNotificationService(database: database)
         adminAccess = AdminAccessStore()
         router = AppRouter(database: database)
+    }
+}
+
+enum TideFontRegistry {
+    private static var didRegister = false
+
+    static func registerIfNeeded() {
+        guard !didRegister else { return }
+        didRegister = true
+        guard let url = Bundle.main.url(forResource: "DaysOne-Regular", withExtension: "ttf") else { return }
+        CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
     }
 }

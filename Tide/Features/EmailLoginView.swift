@@ -328,11 +328,11 @@ private struct BrandIcon: View {
         Group {
             switch brand {
             case .google:
-                SVGRemoteView(url: Bundle.main.url(forResource: "google_logo", withExtension: "svg")!)
+                SVGRemoteView(url: Bundle.main.url(forResource: "google", withExtension: "svg")!)
             case .github:
-                SVGRemoteView(url: Bundle.main.url(forResource: "github_logo", withExtension: "svg")!)
+                SVGRemoteView(url: Bundle.main.url(forResource: "github", withExtension: "svg")!)
             case .apple:
-                SVGRemoteView(url: Bundle.main.url(forResource: "apple_logo", withExtension: "svg")!)
+                SVGRemoteView(url: Bundle.main.url(forResource: "apple", withExtension: "svg")!)
             }
         }
     }

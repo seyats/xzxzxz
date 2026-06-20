@@ -10,6 +10,9 @@ final class UserRecord {
     var avatarSymbol: String
     var avatarImageURLString: String?
     var coverSymbol: String
+    var location: String?
+    var website: String?
+    var birthday: Date?
     var isVerified: Bool
     var isAdministrator: Bool
     var followers: Int
@@ -29,6 +32,9 @@ final class UserRecord {
         avatarSymbol = user.avatarSymbol
         avatarImageURLString = user.avatarImageURL?.absoluteString
         coverSymbol = user.coverSymbol
+        location = user.location
+        website = user.website
+        birthday = user.birthday
         isVerified = user.isVerified
         isAdministrator = user.isAdministrator
         followers = user.followers
@@ -56,6 +62,9 @@ final class UserRecord {
             joinedAt: joinedAt,
             coverSymbol: coverSymbol,
             coverImageURL: coverImageURLString.flatMap(URL.init(string:)),
+            location: location,
+            website: website,
+            birthday: birthday,
             status: AccountStatus(rawValue: statusRawValue) ?? .active,
             lastSeenAt: lastSeenAt,
             isFollowing: isFollowing,

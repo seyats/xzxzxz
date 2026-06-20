@@ -1,4 +1,4 @@
-import PhotosUI
+﻿import PhotosUI
 import SwiftUI
 
 struct FeedView: View {
@@ -15,7 +15,7 @@ struct FeedView: View {
                     if selection == .trends {
                         TrendsView()
                     } else if social.filteredPosts.isEmpty {
-                        EmptyStateView(symbol: "text.page", title: "Постов нет", message: "Подпишитесь на людей или создайте первый пост.")
+                        EmptyStateView(symbol: "text.page", title: "РџРѕСЃС‚РѕРІ РЅРµС‚", message: "РџРѕРґРїРёС€РёС‚РµСЃСЊ РЅР° Р»СЋРґРµР№ РёР»Рё СЃРѕР·РґР°Р№С‚Рµ РїРµСЂРІС‹Р№ РїРѕСЃС‚.")
                     } else {
                         ForEach(filteredPosts) { post in
                             PostCard(post: post)
@@ -75,10 +75,10 @@ private enum FeedSection: String, CaseIterable, Hashable {
 
     var title: String {
         switch self {
-        case .forYou: "Для вас"
-        case .following: "Подписки"
-        case .trends: "Тренды"
-        case .search: "Поиск"
+        case .forYou: "Р”Р»СЏ РІР°СЃ"
+        case .following: "РџРѕРґРїРёСЃРєРё"
+        case .trends: "РўСЂРµРЅРґС‹"
+        case .search: "РџРѕРёСЃРє"
         }
     }
 }
@@ -134,13 +134,13 @@ struct PostCard: View {
                 HStack(spacing: 6) {
                     VerifiedName(user: post.author)
                     Text(post.author.handle).foregroundStyle(.secondary).lineLimit(1)
-                    Text("· \(post.createdAt.formatted(.relative(presentation: .named)))")
+                    Text("В· \(post.createdAt.formatted(.relative(presentation: .named)))")
                         .foregroundStyle(.secondary).lineLimit(1)
                     Spacer()
                     Menu {
-                        Button("Пожаловаться", role: .destructive) { dependencies.router.sheet = .report(post.id, "post") }
+                        Button("РџРѕР¶Р°Р»РѕРІР°С‚СЊСЃСЏ", role: .destructive) { dependencies.router.sheet = .report(post.id, "post") }
                         if post.author.id == dependencies.session.currentUser?.id {
-                            Button("Удалить", role: .destructive) {
+                            Button("РЈРґР°Р»РёС‚СЊ", role: .destructive) {
                                 if let actorID = dependencies.session.currentUser?.id { dependencies.social.deletePost(post.id, actorID: actorID) }
                             }
                         }
@@ -215,19 +215,19 @@ struct ComposerView: View {
                         HStack {
                             AvatarView(user: dependencies.session.currentUser ?? User(id: UUID(), name: "Tide", username: "tide", biography: "", avatarSymbol: "person.crop.circle.fill", isVerified: false, isAdministrator: false, followers: 0, following: 0, joinedAt: .now, coverSymbol: "water"), size: 38)
                             VStack(alignment: .leading, spacing: 2) {
-                        Text("Публикует")
+                        Text("РџСѓР±Р»РёРєСѓРµС‚")
                             .font(.caption).foregroundStyle(.secondary)
                                 Text(dependencies.session.currentUser?.handle ?? "@tide")
                                     .font(.subheadline.weight(.semibold))
                             }
                             Spacer()
-                            TextField("Локация", text: $location)
+                            TextField("Р›РѕРєР°С†РёСЏ", text: $location)
                                 .frame(width: 120)
                                 .textInputAutocapitalization(.never)
                         }
                         ZStack(alignment: .topLeading) {
                             if bodyText.isEmpty {
-                                Text("Что у вас нового?")
+                                Text("Р§С‚Рѕ Сѓ РІР°СЃ РЅРѕРІРѕРіРѕ?")
                                     .foregroundStyle(.secondary)
                                     .padding(.top, 8)
                                     .padding(.leading, 5)
@@ -238,9 +238,9 @@ struct ComposerView: View {
                         }
                         if !selectedMedia.isEmpty { ComposerMediaStrip(media: selectedMedia, remove: removeMedia) }
                         HStack(spacing: 10) {
-                            actionTile(symbol: "photo.on.rectangle", title: "Медиа")
-                            actionTile(symbol: "location.fill", title: "Локация")
-                            actionTile(symbol: "clock.badge.checkmark", title: "Запланировать")
+                            actionTile(symbol: "photo.on.rectangle", title: "РњРµРґРёР°")
+                            actionTile(symbol: "location.fill", title: "Р›РѕРєР°С†РёСЏ")
+                            actionTile(symbol: "clock.badge.checkmark", title: "Р—Р°РїР»Р°РЅРёСЂРѕРІР°С‚СЊ")
                         }
                     }
                 } header: {
@@ -248,21 +248,21 @@ struct ComposerView: View {
                 }
                 Section {
                     PhotosPicker(selection: $selectedItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos])) {
-                        Label("Добавить медиа", systemImage: "photo.on.rectangle")
+                        Label("Р”РѕР±Р°РІРёС‚СЊ РјРµРґРёР°", systemImage: "photo.on.rectangle")
                     }
-                    if isImporting { ProgressView("Импорт медиа") }
+                    if isImporting { ProgressView("РРјРїРѕСЂС‚ РјРµРґРёР°") }
                 }
-                Picker("Видимость", selection: $visibility) {
+                Picker("Р’РёРґРёРјРѕСЃС‚СЊ", selection: $visibility) {
                     ForEach(PostVisibility.allCases) { Text($0.title).tag($0) }
                 }
             }
-            .navigationTitle("Новый пост")
+            .navigationTitle("РќРѕРІС‹Р№ РїРѕСЃС‚")
             .navigationBarTitleDisplayMode(.inline)
             .scrollContentBackground(.hidden)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("РћС‚РјРµРЅР°") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Опубликовать", action: publish)
+                    Button("РћРїСѓР±Р»РёРєРѕРІР°С‚СЊ", action: publish)
                         .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedMedia.isEmpty)
                 }
             }
@@ -321,6 +321,7 @@ struct ComposerView: View {
 
 struct PostDetailView: View {
     @Environment(AppDependencies.self) private var dependencies
+    @Environment(\.dismiss) private var dismiss
     let postID: UUID
     @State private var reply = ""
 
@@ -329,36 +330,26 @@ struct PostDetailView: View {
     var body: some View {
         Group {
             if let post = dependencies.social.posts.first(where: { $0.id == postID }) {
-                List {
-                    PostCard(post: post).listRowInsets(EdgeInsets()).listRowSeparator(.hidden)
-                    Section("Ответы") {
-                        if comments.isEmpty {
-                            ContentUnavailableView("Ответов нет", systemImage: "bubble.left", description: Text("Начните разговор."))
-                        }
-                        ForEach(comments) { comment in
-                            VStack(alignment: .leading, spacing: 7) {
-                                UserRow(user: comment.author)
-                                Text(comment.body)
-                            }
-                        }
+                ScrollView {
+                    VStack(spacing: 18) {
+                        topBar
+                        PostCard(post: post)
+                            .background(.clear)
+                        repliesSection
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 18)
                 }
-                .scrollContentBackground(.hidden)
                 .safeAreaInset(edge: .bottom) {
-                    HStack {
-                        TextField("Ваш ответ", text: $reply)
-                        Button("Отправить", action: sendReply)
-                            .disabled(reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                    .padding()
-                    .background(.bar)
+                    replyComposer
                 }
             } else {
                 EmptyStateView(symbol: "exclamationmark.triangle", title: "Пост недоступен", message: "Возможно, он был удалён.")
             }
         }
-        .navigationTitle("Пост")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden(true)
     }
 
     private func sendReply() {
@@ -366,8 +357,91 @@ struct PostDetailView: View {
         dependencies.social.createComment(postID: postID, authorID: authorID, body: reply)
         reply = ""
     }
+
+    private var topBar: some View {
+        HStack {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 36, height: 36)
+                    .foregroundStyle(.primary)
+                    .background(AuthGlassBackground(cornerRadius: 18, interactive: true))
+            }
+            Spacer()
+            Text("Пост")
+                .font(.system(size: 15, weight: .semibold))
+            Spacer()
+            Color.clear.frame(width: 36, height: 36)
+        }
+    }
+
+    private var repliesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Ответы")
+                .font(.system(size: 15, weight: .semibold))
+            if comments.isEmpty {
+                EmptyRepliesState()
+                    .padding(.vertical, 18)
+            } else {
+                VStack(spacing: 16) {
+                    ForEach(comments) { comment in
+                        VStack(alignment: .leading, spacing: 7) {
+                            UserRow(user: comment.author)
+                            Text(comment.body)
+                        }
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 14)
+                        .background(AuthGlassBackground(cornerRadius: 18, interactive: false))
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var replyComposer: some View {
+        HStack(spacing: 12) {
+            TextField("Ваш ответ", text: $reply, axis: .vertical)
+                .lineLimit(1...4)
+                .textInputAutocapitalization(.sentences)
+                .autocorrectionDisabled(false)
+                .padding(.vertical, 12)
+            Button("Отправить", action: sendReply)
+                .disabled(reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .buttonStyle(TidePrimaryButtonStyle())
+                .frame(minWidth: 110)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(AuthGlassBackground(cornerRadius: 20, interactive: true))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(.white.opacity(0.12), lineWidth: 0.5)
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 10)
+    }
 }
 
+struct EmptyRepliesState: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "bubble.left")
+                .font(.system(size: 22, weight: .regular))
+                .foregroundStyle(.secondary)
+            Text("Ответов нет")
+                .font(.system(size: 15, weight: .semibold))
+            Text("Начните разговор.")
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 18)
+        .background(.clear)
+    }
+}
 struct TrendsView: View {
     var body: some View {
         ContentUnavailableView("Трендов пока нет", systemImage: "chart.bar.xaxis", description: Text("Популярные темы появятся, когда в ленте будет больше живого контента."))

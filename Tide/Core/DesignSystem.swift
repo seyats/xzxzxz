@@ -20,6 +20,10 @@ enum TideTypography {
     static let headline = Font.system(size: 17, weight: .semibold, design: .rounded)
     static let body = Font.system(size: 16, weight: .regular, design: .rounded)
     static let metadata = Font.system(size: 12, weight: .medium, design: .rounded)
+
+    static func brand(_ size: CGFloat) -> Font {
+        Font.custom("Days One", size: size)
+    }
 }
 
 enum TideSpacing {
@@ -38,11 +42,7 @@ struct AvatarView: View {
         ZStack {
             Circle().fill(.primary.opacity(0.08))
             if user.username.caseInsensitiveCompare("durov") == .orderedSame {
-                Image("TideAuthLogo")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: size, height: size)
-                    .clipShape(Circle())
+                TideBrandLogoView(size: size, style: .circle)
             } else if let url = user.avatarImageURL,
                let image = UIImage(contentsOfFile: url.path) {
                 Image(uiImage: image)
@@ -68,15 +68,52 @@ struct VerifiedName: View {
         HStack(spacing: 4) {
             Text(user.name).fontWeight(.semibold)
             if user.isVerified {
-                Image("TideAuthLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 16, height: 16)
-                    .clipShape(Circle())
+                TideBrandLogoView(size: 16, style: .circle)
                     .overlay(Circle().stroke(.primary.opacity(0.18), lineWidth: 0.5))
                     .accessibilityLabel("Verified")
             }
         }
+    }
+}
+
+struct TideBrandLogoView: View {
+    enum Style {
+        case circle
+        case rounded(CGFloat)
+    }
+
+    let size: CGFloat
+    var style: Style = .circle
+
+    var body: some View {
+        switch style {
+        case .circle:
+            brandImage
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+        case .rounded(let radius):
+            brandImage
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private var brandImage: some View {
+        if let image = resolvedImage {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+        } else {
+            Image("TideAuthLogo")
+                .resizable()
+                .scaledToFill()
+        }
+    }
+
+    private var resolvedImage: UIImage? {
+        guard let url = Bundle.main.url(forResource: "TideIcon", withExtension: "png") else { return nil }
+        return UIImage(contentsOfFile: url.path)
     }
 }
 
@@ -170,11 +207,11 @@ struct TideConnectionBadge: View {
 
     private var label: String {
         switch state {
-        case .connected: "Online"
-        case .connecting: "Connecting"
-        case .reconnecting: "Reconnecting"
-        case .failed: "Offline"
-        case .disconnected: "Offline"
+        case .connected: "Подключено"
+        case .connecting: "Подключение"
+        case .reconnecting: "Повторное подключение"
+        case .failed: "Нет связи"
+        case .disconnected: "Нет связи"
         }
     }
 }

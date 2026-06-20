@@ -15,6 +15,9 @@ struct User: Identifiable, Hashable, Codable, Sendable {
     var joinedAt: Date
     var coverSymbol: String = "water"
     var coverImageURL: URL? = nil
+    var location: String? = nil
+    var website: String? = nil
+    var birthday: Date? = nil
     var status: AccountStatus = .active
     var lastSeenAt: Date = .now
     var isFollowing: Bool = false

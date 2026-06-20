@@ -126,6 +126,9 @@ final class LocalDatabase {
             record.avatarSymbol = user.avatarSymbol
             record.avatarImageURLString = user.avatarImageURL?.absoluteString
             record.coverSymbol = user.coverSymbol
+            record.location = user.location
+            record.website = user.website
+            record.birthday = user.birthday
             record.isVerified = user.isVerified
             record.isAdministrator = user.isAdministrator
             record.followers = user.followers
