@@ -83,6 +83,7 @@ final class AppDependencies {
     }
 }
 
+@MainActor
 enum TideFontRegistry {
     private static var didRegister = false
 
