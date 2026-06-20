@@ -1,4 +1,4 @@
-import PhotosUI
+﻿import PhotosUI
 import SwiftUI
 import UserNotifications
 import UIKit
@@ -23,7 +23,7 @@ struct ProfileView: View {
                 profileHeader
                 Section {
                     if visiblePosts.isEmpty {
-                        ContentUnavailableView("Постов нет", systemImage: "rectangle.stack", description: Text("Опубликованные посты будут отображаться здесь."))
+                        ContentUnavailableView("РџРѕСЃС‚РѕРІ РЅРµС‚", systemImage: "rectangle.stack", description: Text("РћРїСѓР±Р»РёРєРѕРІР°РЅРЅС‹Рµ РїРѕСЃС‚С‹ Р±СѓРґСѓС‚ РѕС‚РѕР±СЂР°Р¶Р°С‚СЊСЃСЏ Р·РґРµСЃСЊ."))
                             .padding(.top, 38)
                     }
                     ForEach(visiblePosts) { post in
@@ -31,7 +31,7 @@ struct ProfileView: View {
                         Divider().padding(.leading, 68)
                     }
                 } header: {
-                    Picker("Раздел профиля", selection: $section) {
+                    Picker("Р Р°Р·РґРµР» РїСЂРѕС„РёР»СЏ", selection: $section) {
                         ForEach(sections, id: \.self) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
@@ -47,8 +47,8 @@ struct ProfileView: View {
                 Button { dependencies.router.push(.settings) } label: { Image(systemName: "gearshape") }
             } else {
                 Menu {
-                    Button(profile.isBlocked ? "Разблокировать" : "Заблокировать", role: .destructive, action: toggleBlock)
-                    Button("Пожаловаться", role: .destructive) { dependencies.router.sheet = .report(profile.id, "user") }
+                    Button(profile.isBlocked ? "Р Р°Р·Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ" : "Р—Р°Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ", role: .destructive, action: toggleBlock)
+                    Button("РџРѕР¶Р°Р»РѕРІР°С‚СЊСЃСЏ", role: .destructive) { dependencies.router.sheet = .report(profile.id, "user") }
                 } label: { Image(systemName: "ellipsis.circle") }
             }
         }
@@ -83,7 +83,7 @@ struct ProfileView: View {
                             .scaledToFit()
                             .frame(width: 14, height: 14)
                             .clipShape(Circle())
-                        Text("аккаунт верифицирован")
+                        Text("Р°РєРєР°СѓРЅС‚ РІРµСЂРёС„РёС†РёСЂРѕРІР°РЅ")
                     }
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
@@ -188,10 +188,10 @@ private enum ProfileSection: String, CaseIterable, Hashable {
 
     var title: String {
         switch self {
-        case .posts: "Посты"
-        case .media: "Медиа"
-        case .saved: "Сохранённое"
-        case .likes: "Лайки"
+        case .posts: "РџРѕСЃС‚С‹"
+        case .media: "РњРµРґРёР°"
+        case .saved: "РЎРѕС…СЂР°РЅС‘РЅРЅРѕРµ"
+        case .likes: "Р›Р°Р№РєРё"
         }
     }
 }
@@ -446,71 +446,71 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var preferences = dependencies.preferences
         Form {
-            Section("Оформление") {
+            Section("РћС„РѕСЂРјР»РµРЅРёРµ") {
                 Picker("Theme", selection: $preferences.theme) {
                     ForEach(PreferencesStore.Theme.allCases) { Text($0.title).tag($0) }
                 }
-                LabeledContent("Design", value: "Monochrome Liquid Glass")
+                LabeledContent("Дизайн", value: "Monochrome Liquid Glass")
                 Picker("Backdrop", selection: $preferences.backdropStyle) {
                     ForEach(PreferencesStore.BackdropStyle.allCases) { Text($0.title).tag($0) }
                 }
-                TextField("Backdrop resource", text: $preferences.backdropResourceName)
-                TextField("Backdrop video URL", text: $preferences.backdropVideoURLString)
+                TextField("Ресурс фона", text: $preferences.backdropResourceName)
+                TextField("URL видео фона", text: $preferences.backdropVideoURLString)
                 Slider(value: $preferences.backdropOpacity, in: 0.2...1)
-                TextField("Auth background resource", text: $preferences.authBackdropResourceName)
-                TextField("App logo resource", text: $preferences.brandLogoResourceName)
+                TextField("Фон авторизации", text: $preferences.authBackdropResourceName)
+                TextField("Логотип приложения", text: $preferences.brandLogoResourceName)
             }
-            Section("Уведомления") {
-                Toggle("Push-уведомления", isOn: $preferences.notificationsEnabled)
-                Button("Запросить доступ к уведомлениям") { Task { await dependencies.push.requestAuthorization() } }
-                LabeledContent("Статус", value: pushStatus)
-                if let token = dependencies.push.deviceToken { LabeledContent("APNs token", value: String(token.prefix(12)) + "…") }
+            Section("РЈРІРµРґРѕРјР»РµРЅРёСЏ") {
+                Toggle("Push-СѓРІРµРґРѕРјР»РµРЅРёСЏ", isOn: $preferences.notificationsEnabled)
+                Button("Р—Р°РїСЂРѕСЃРёС‚СЊ РґРѕСЃС‚СѓРї Рє СѓРІРµРґРѕРјР»РµРЅРёСЏРј") { Task { await dependencies.push.requestAuthorization() } }
+                LabeledContent("РЎС‚Р°С‚СѓСЃ", value: pushStatus)
+                if let token = dependencies.push.deviceToken { LabeledContent("APNs token", value: String(token.prefix(12)) + "вЂ¦") }
             }
-            Section("Приватность") {
-                Toggle("Отчёты о прочтении", isOn: $preferences.readReceiptsEnabled)
-                Toggle("Скрывать чувствительный контент", isOn: $preferences.sensitiveContentHidden)
-                NavigationLink("Заблокированные аккаунты") { BlockedAccountsView() }
-                NavigationLink("Активные сессии") { ActiveSessionsView() }
+            Section("РџСЂРёРІР°С‚РЅРѕСЃС‚СЊ") {
+                Toggle("РћС‚С‡С‘С‚С‹ Рѕ РїСЂРѕС‡С‚РµРЅРёРё", isOn: $preferences.readReceiptsEnabled)
+                Toggle("РЎРєСЂС‹РІР°С‚СЊ С‡СѓРІСЃС‚РІРёС‚РµР»СЊРЅС‹Р№ РєРѕРЅС‚РµРЅС‚", isOn: $preferences.sensitiveContentHidden)
+                NavigationLink("Р—Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРЅС‹Рµ Р°РєРєР°СѓРЅС‚С‹") { BlockedAccountsView() }
+                NavigationLink("РђРєС‚РёРІРЅС‹Рµ СЃРµСЃСЃРёРё") { ActiveSessionsView() }
             }
-            Section("Данные") {
-                Toggle("Автовоспроизведение видео", isOn: $preferences.autoplayVideo)
-                Toggle("Загрузка через сотовую сеть", isOn: $preferences.cellularUploadsEnabled)
-                LabeledContent("Хранилище", value: "SwiftData")
+            Section("Р”Р°РЅРЅС‹Рµ") {
+                Toggle("РђРІС‚РѕРІРѕСЃРїСЂРѕРёР·РІРµРґРµРЅРёРµ РІРёРґРµРѕ", isOn: $preferences.autoplayVideo)
+                Toggle("Р—Р°РіСЂСѓР·РєР° С‡РµСЂРµР· СЃРѕС‚РѕРІСѓСЋ СЃРµС‚СЊ", isOn: $preferences.cellularUploadsEnabled)
+                LabeledContent("РҐСЂР°РЅРёР»РёС‰Рµ", value: "SwiftData")
             }
-            Section("Разработчикам") {
-                Button("API бота Tide") { dependencies.router.push(.botPlatform) }
-                Button("Открыть сайт Tide") { dependencies.router.push(.browser(URL(string: "https://tide.app")!)) }
-                LabeledContent("Бэкенд", value: ServerConfiguration.current.isRemoteEnabled ? "Настроен" : "Не настроен")
+            Section("Р Р°Р·СЂР°Р±РѕС‚С‡РёРєР°Рј") {
+                Button("API Р±РѕС‚Р° Tide") { dependencies.router.push(.botPlatform) }
+                Button("РћС‚РєСЂС‹С‚СЊ СЃР°Р№С‚ Tide") { dependencies.router.push(.browser(URL(string: "https://tide.app")!)) }
+                LabeledContent("Режим сервера", value: ServerConfiguration.current.isRemoteEnabled ? "Настроен" : "Не настроен")
             }
             if dependencies.session.currentUser?.isAdministrator == true {
-                Section("Tide") { Button("Панель администратора") { dependencies.router.sheet = .adminAccess } }
+                Section("Tide") { Button("РџР°РЅРµР»СЊ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°") { dependencies.router.sheet = .adminAccess } }
             }
             Section {
-                Button("Выйти", role: .destructive) { dependencies.session.signOut(); dependencies.router.reset() }
-                Button("Удалить аккаунт", role: .destructive) { confirmsDeletion = true }
+                Button("Р’С‹Р№С‚Рё", role: .destructive) { dependencies.session.signOut(); dependencies.router.reset() }
+                Button("РЈРґР°Р»РёС‚СЊ Р°РєРєР°СѓРЅС‚", role: .destructive) { confirmsDeletion = true }
             }
         }
         .navigationTitle(String(localized: "settings_title"))
         .scrollContentBackground(.hidden)
-        .confirmationDialog("Удалить этот локальный аккаунт?", isPresented: $confirmsDeletion, titleVisibility: .visible) {
-            Button("Удалить аккаунт", role: .destructive) {
+        .confirmationDialog("РЈРґР°Р»РёС‚СЊ СЌС‚РѕС‚ Р»РѕРєР°Р»СЊРЅС‹Р№ Р°РєРєР°СѓРЅС‚?", isPresented: $confirmsDeletion, titleVisibility: .visible) {
+            Button("РЈРґР°Р»РёС‚СЊ Р°РєРєР°СѓРЅС‚", role: .destructive) {
                 dependencies.session.signOut()
                 dependencies.router.reset()
             }
-            Button("Отмена", role: .cancel) {}
+            Button("РћС‚РјРµРЅР°", role: .cancel) {}
         } message: {
-            Text("Удаление на сервере тоже должно быть подтверждено бэкендом при включённой синхронизации.")
+            Text("РЈРґР°Р»РµРЅРёРµ РЅР° СЃРµСЂРІРµСЂРµ С‚РѕР¶Рµ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ РїРѕРґС‚РІРµСЂР¶РґРµРЅРѕ Р±СЌРєРµРЅРґРѕРј РїСЂРё РІРєР»СЋС‡С‘РЅРЅРѕР№ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё.")
         }
     }
 
     private var pushStatus: String {
         switch dependencies.push.authorizationStatus {
-        case .authorized: "Разрешено"
-        case .denied: "Запрещено"
-        case .provisional: "Временно"
-        case .ephemeral: "Временный доступ"
-        case .notDetermined: "Не запрошено"
-        @unknown default: "Неизвестно"
+        case .authorized: "Р Р°Р·СЂРµС€РµРЅРѕ"
+        case .denied: "Р—Р°РїСЂРµС‰РµРЅРѕ"
+        case .provisional: "Р’СЂРµРјРµРЅРЅРѕ"
+        case .ephemeral: "Р’СЂРµРјРµРЅРЅС‹Р№ РґРѕСЃС‚СѓРї"
+        case .notDetermined: "РќРµ Р·Р°РїСЂРѕС€РµРЅРѕ"
+        @unknown default: "РќРµРёР·РІРµСЃС‚РЅРѕ"
         }
     }
 }
@@ -525,7 +525,7 @@ struct BlockedAccountsView: View {
         .scrollContentBackground(.hidden)
         .overlay {
             if !dependencies.database.users().contains(where: \.isBlocked) {
-                ContentUnavailableView("Заблокированных аккаунтов нет", systemImage: "person.crop.circle.badge.checkmark")
+                ContentUnavailableView("Р—Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРЅС‹С… Р°РєРєР°СѓРЅС‚РѕРІ РЅРµС‚", systemImage: "person.crop.circle.badge.checkmark")
             }
         }
         .navigationTitle(String(localized: "settings_blocked_accounts"))
@@ -537,14 +537,14 @@ struct ActiveSessionsView: View {
 
     var body: some View {
         List {
-            Label("Этот iPhone", systemImage: "iphone.gen3")
+            Label("Р­С‚РѕС‚ iPhone", systemImage: "iphone.gen3")
             if otherSessionCount > 0 {
                 ForEach(0..<otherSessionCount, id: \.self) { index in
-                    Label(index == 0 ? "Mac" : "Веб-браузер", systemImage: index == 0 ? "laptopcomputer" : "globe")
+                    Label(index == 0 ? "Mac" : "Р’РµР±-Р±СЂР°СѓР·РµСЂ", systemImage: index == 0 ? "laptopcomputer" : "globe")
                 }
             }
-            Section("Безопасность") {
-                Button("Завершить другие сессии", role: .destructive) { otherSessionCount = 0 }
+            Section("Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ") {
+                Button("Р—Р°РІРµСЂС€РёС‚СЊ РґСЂСѓРіРёРµ СЃРµСЃСЃРёРё", role: .destructive) { otherSessionCount = 0 }
                     .disabled(otherSessionCount == 0)
             }
         }
