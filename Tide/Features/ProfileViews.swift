@@ -1,5 +1,6 @@
 ﻿import PhotosUI
 import SwiftUI
+import UniformTypeIdentifiers
 import UserNotifications
 import UIKit
 
@@ -206,7 +207,7 @@ private enum ProfileSection: String, CaseIterable, Hashable {
     }
 }
 
-struct EditProfileView: View {
+struct LegacyEditProfileView: View {
     @Environment(AppDependencies.self) private var dependencies
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
@@ -222,6 +223,7 @@ struct EditProfileView: View {
     @State private var coverImageURL: URL?
     @State private var avatarPickerItem: PhotosPickerItem?
     @State private var coverPickerItem: PhotosPickerItem?
+    @State private var avatarFileImporter = false
     @State private var originalSnapshot: EditProfileSnapshot?
     @State private var validationMessage: String?
     @FocusState private var focusedField: EditProfileField?
@@ -487,7 +489,7 @@ private struct EditProfileSnapshot: Equatable {
     let coverImageURL: URL?
 }
 
-struct SettingsView: View {
+struct LegacySettingsView: View {
     @Environment(AppDependencies.self) private var dependencies
     @State private var confirmsDeletion = false
     @State private var wallpaperItem: PhotosPickerItem?
@@ -644,7 +646,7 @@ struct BlockedAccountsView: View {
     }
 }
 
-struct ActiveSessionsView: View {
+struct LegacyActiveSessionsView: View {
     @State private var otherSessionCount = 2
 
     var body: some View {

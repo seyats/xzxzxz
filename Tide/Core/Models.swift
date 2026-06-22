@@ -151,6 +151,47 @@ enum MessageAttachmentKind: String, CaseIterable, Codable, Sendable {
     case file
 }
 
+enum AuthProvider: String, CaseIterable, Codable, Sendable {
+    case email
+    case google
+    case apple
+
+    var title: String {
+        switch self {
+        case .email: "Почта"
+        case .google: "Google"
+        case .apple: "Apple"
+        }
+    }
+}
+
+struct AuthAccountInfo: Hashable, Codable, Sendable {
+    var provider: AuthProvider
+    var email: String
+    var displayName: String
+
+    var providerFootnote: String? {
+        switch provider {
+        case .email:
+            nil
+        case .google:
+            "Вход выполнен с аккаунтом Google."
+        case .apple:
+            "Вход выполнен с аккаунтом Apple."
+        }
+    }
+}
+
+struct DeviceSession: Identifiable, Hashable, Codable, Sendable {
+    let id: UUID
+    var userID: UUID
+    var deviceName: String
+    var systemVersion: String
+    var appVersion: String
+    var lastSeenAt: Date
+    var isCurrent: Bool
+}
+
 enum AccountStatus: String, CaseIterable, Codable, Sendable {
     case active
     case restricted
@@ -310,6 +351,10 @@ enum AppRoute: Hashable {
     case profile(User)
     case chat(UUID)
     case settings
+    case appearance
+    case storage
+    case dataManagement
+    case storageFiles
     case stories(UUID)
     case live
     case browser(URL)

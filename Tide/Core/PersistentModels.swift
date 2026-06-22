@@ -426,6 +426,39 @@ final class DeviceTokenRecord {
 }
 
 @Model
+final class DeviceSessionRecord {
+    @Attribute(.unique) var id: UUID
+    var userID: UUID
+    var deviceName: String
+    var systemVersion: String
+    var appVersion: String
+    var lastSeenAt: Date
+    var isCurrent: Bool
+
+    init(session: DeviceSession) {
+        id = session.id
+        userID = session.userID
+        deviceName = session.deviceName
+        systemVersion = session.systemVersion
+        appVersion = session.appVersion
+        lastSeenAt = session.lastSeenAt
+        isCurrent = session.isCurrent
+    }
+
+    var domain: DeviceSession {
+        DeviceSession(
+            id: id,
+            userID: userID,
+            deviceName: deviceName,
+            systemVersion: systemVersion,
+            appVersion: appVersion,
+            lastSeenAt: lastSeenAt,
+            isCurrent: isCurrent
+        )
+    }
+}
+
+@Model
 final class AuditEventRecord {
     @Attribute(.unique) var id: UUID
     var actorID: UUID

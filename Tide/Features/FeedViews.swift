@@ -15,7 +15,7 @@ struct FeedView: View {
                     if selection == .trends {
                         TrendsView()
                     } else if social.filteredPosts.isEmpty {
-                        EmptyStateView(symbol: "text.page", title: "Постов нет", message: "Подпишитесь на людей или создайте первый пост.")
+                        EmptyStateView(symbol: "bubble.left.and.bubble.right", title: "Tide сфокусирован на общении", message: "Посты скрыты. Истории, чаты, фото, видео и файлы остаются в сообщениях.")
                     } else {
                         ForEach(filteredPosts) { post in
                             PostCard(post: post, mode: .feed)
@@ -52,9 +52,6 @@ struct FeedView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button { dependencies.router.push(.live) } label: { Image(systemName: "dot.radiowaves.left.and.right") }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { dependencies.router.sheet = .composer } label: { Image(systemName: "square.and.pencil") }
             }
         }
     }

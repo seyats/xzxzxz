@@ -60,6 +60,7 @@ final class AppDependencies {
     let notifications: NotificationStore
     let moderation: ModerationStore
     let preferences: PreferencesStore
+    let deviceSessions: DeviceSessionStore
     let push: PushNotificationService
     let adminAccess: AdminAccessStore
     let api: APIClient
@@ -77,17 +78,20 @@ final class AppDependencies {
         notifications = NotificationStore(database: database)
         moderation = ModerationStore(database: database)
         preferences = PreferencesStore()
+        deviceSessions = DeviceSessionStore(database: database)
         push = PushNotificationService(database: database)
         adminAccess = AdminAccessStore()
         router = AppRouter(database: database)
         messenger.reload(for: session.currentUser?.id)
         notifications.reload(for: session.currentUser?.id)
+        deviceSessions.activate(for: session.currentUser)
     }
 
     func handleSessionUserChanged(_ user: User?) {
         router.reset()
         messenger.reload(for: user?.id)
         notifications.reload(for: user?.id)
+        deviceSessions.activate(for: user)
         social.reload()
     }
 }

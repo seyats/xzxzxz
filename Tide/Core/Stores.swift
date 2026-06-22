@@ -2,6 +2,7 @@ import Foundation
 import CryptoKit
 import Observation
 import SwiftUI
+import UIKit
 
 @MainActor
 @Observable
@@ -43,6 +44,7 @@ final class SessionStore {
             currentUser = user
             defaults.set(user.id.uuidString, forKey: currentUserKey)
             defaults.set(true, forKey: profileSetupKey(for: user.id))
+            persistAuthInfo(for: user, provider: .email, email: normalizedIdentifier.contains("@") ? normalizedIdentifier : currentAuthInfo(for: user.id).email, displayName: user.name)
             errorMessage = nil
             return
         }
@@ -58,6 +60,7 @@ final class SessionStore {
         currentUser = user
         defaults.set(user.id.uuidString, forKey: currentUserKey)
         defaults.set(true, forKey: profileSetupKey(for: user.id))
+        persistAuthInfo(for: user, provider: .email, email: "\(demoIdentifier)@tide.app", displayName: user.name)
         errorMessage = nil
     }
 
@@ -76,6 +79,7 @@ final class SessionStore {
                 currentUser = user
                 defaults.set(user.id.uuidString, forKey: currentUserKey)
                 defaults.set(true, forKey: profileSetupKey(for: user.id))
+                persistAuthInfo(for: user, provider: .email, email: "durov@tide.app", displayName: user.name)
                 errorMessage = nil
                 return
             }
@@ -95,6 +99,7 @@ final class SessionStore {
             currentUser = user
             defaults.set(user.id.uuidString, forKey: currentUserKey)
             defaults.set(true, forKey: profileSetupKey(for: user.id))
+            persistAuthInfo(for: user, provider: .email, email: normalizedEmail, displayName: user.name)
             errorMessage = nil
             return
         }
@@ -114,6 +119,7 @@ final class SessionStore {
         currentUser = createdUser
         defaults.set(createdUser.id.uuidString, forKey: currentUserKey)
         defaults.set(false, forKey: profileSetupKey(for: createdUser.id))
+        persistAuthInfo(for: createdUser, provider: .email, email: normalizedEmail, displayName: createdUser.name)
         errorMessage = nil
     }
 
@@ -126,6 +132,7 @@ final class SessionStore {
             currentUser = user
             defaults.set(user.id.uuidString, forKey: currentUserKey)
             defaults.set(true, forKey: profileSetupKey(for: user.id))
+            persistAuthInfo(for: user, provider: .apple, email: email ?? currentAuthInfo(for: user.id).email, displayName: user.name)
             errorMessage = nil
             return
         }
@@ -141,6 +148,7 @@ final class SessionStore {
         currentUser = createdUser
         defaults.set(createdUser.id.uuidString, forKey: currentUserKey)
         defaults.set(false, forKey: profileSetupKey(for: createdUser.id))
+        persistAuthInfo(for: createdUser, provider: .apple, email: fallbackEmail ?? "", displayName: createdUser.name)
         errorMessage = nil
     }
 
@@ -158,6 +166,7 @@ final class SessionStore {
             currentUser = user
             defaults.set(user.id.uuidString, forKey: currentUserKey)
             defaults.set(true, forKey: profileSetupKey(for: user.id))
+            persistAuthInfo(for: user, provider: .google, email: normalizedEmail, displayName: user.name)
             errorMessage = nil
             return
         }
@@ -172,6 +181,7 @@ final class SessionStore {
         currentUser = createdUser
         defaults.set(createdUser.id.uuidString, forKey: currentUserKey)
         defaults.set(false, forKey: profileSetupKey(for: createdUser.id))
+        persistAuthInfo(for: createdUser, provider: .google, email: normalizedEmail, displayName: createdUser.name)
         errorMessage = nil
     }
 
@@ -204,6 +214,8 @@ final class SessionStore {
         currentUser = user
         database?.updateUser(user)
         defaults.set(user.id.uuidString, forKey: currentUserKey)
+        let info = currentAuthInfo(for: user.id)
+        persistAuthInfo(for: user, provider: info.provider, email: info.email, displayName: user.name)
     }
 
     func completeProfileSetup(name: String, username: String, password: String? = nil) {
@@ -293,6 +305,7 @@ final class SessionStore {
         
         currentUser = createdUser
         defaults.set(createdUser.id.uuidString, forKey: currentUserKey)
+        persistAuthInfo(for: createdUser, provider: .email, email: normalizedEmail, displayName: createdUser.name)
         errorMessage = nil
     }
 
@@ -370,6 +383,132 @@ final class SessionStore {
     private func profileSetupKey(for id: UUID) -> String {
         "tide.profileSetupComplete.\(id.uuidString)"
     }
+
+    func currentAuthInfo() -> AuthAccountInfo {
+        guard let currentUser else {
+            return AuthAccountInfo(provider: .email, email: "", displayName: "")
+        }
+        return currentAuthInfo(for: currentUser.id)
+    }
+
+    private func currentAuthInfo(for id: UUID) -> AuthAccountInfo {
+        let prefix = authInfoPrefix(for: id)
+        let provider = AuthProvider(rawValue: defaults.string(forKey: "\(prefix).provider") ?? "") ?? .email
+        return AuthAccountInfo(
+            provider: provider,
+            email: defaults.string(forKey: "\(prefix).email") ?? "",
+            displayName: defaults.string(forKey: "\(prefix).displayName") ?? ""
+        )
+    }
+
+    private func persistAuthInfo(for user: User, provider: AuthProvider, email: String, displayName: String) {
+        let prefix = authInfoPrefix(for: user.id)
+        defaults.set(provider.rawValue, forKey: "\(prefix).provider")
+        defaults.set(email, forKey: "\(prefix).email")
+        defaults.set(displayName, forKey: "\(prefix).displayName")
+    }
+
+    private func authInfoPrefix(for id: UUID) -> String {
+        "tide.authInfo.\(id.uuidString)"
+    }
+}
+
+@MainActor
+@Observable
+final class DeviceSessionStore {
+    private let database: LocalDatabase
+    private let defaults: UserDefaults
+    private let currentSessionIDKey = "tide.currentDeviceSessionID"
+    private(set) var sessions: [DeviceSession] = []
+
+    init(database: LocalDatabase, defaults: UserDefaults = .standard) {
+        self.database = database
+        self.defaults = defaults
+    }
+
+    func activate(for user: User?) {
+        guard let user else {
+            sessions = []
+            return
+        }
+        let session = DeviceSession(
+            id: currentSessionID(),
+            userID: user.id,
+            deviceName: Self.currentDeviceName(),
+            systemVersion: UIDevice.current.systemVersion,
+            appVersion: Self.appVersion(),
+            lastSeenAt: .now,
+            isCurrent: true
+        )
+        database.upsertDeviceSession(session)
+        reload(for: user.id)
+    }
+
+    func reload(for userID: UUID?) {
+        guard let userID else {
+            sessions = []
+            return
+        }
+        sessions = database.deviceSessions(userID: userID)
+    }
+
+    func terminate(_ session: DeviceSession, currentUserID: UUID?) {
+        guard !session.isCurrent else { return }
+        database.deleteDeviceSession(session.id)
+        reload(for: currentUserID)
+    }
+
+    private func currentSessionID() -> UUID {
+        if let stored = defaults.string(forKey: currentSessionIDKey), let id = UUID(uuidString: stored) {
+            return id
+        }
+        let id = UUID()
+        defaults.set(id.uuidString, forKey: currentSessionIDKey)
+        return id
+    }
+
+    private static func currentDeviceName() -> String {
+        let mapped = modelName(for: hardwareIdentifier())
+        return mapped == "iPhone" ? UIDevice.current.name.ifEmpty("Этот iPhone") : mapped
+    }
+
+    private static func appVersion() -> String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
+        return build.map { "\(version) (\($0))" } ?? version
+    }
+
+    private static func hardwareIdentifier() -> String {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        let mirror = Mirror(reflecting: systemInfo.machine)
+        return mirror.children.reduce(into: "") { result, element in
+            guard let value = element.value as? Int8, value != 0 else { return }
+            result.append(String(UnicodeScalar(UInt32(UInt8(value))) ?? UnicodeScalar(32)!))
+        }
+    }
+
+    private static func modelName(for identifier: String) -> String {
+        let models: [String: String] = [
+            "iPhone14,4": "iPhone 13 mini",
+            "iPhone14,5": "iPhone 13",
+            "iPhone14,2": "iPhone 13 Pro",
+            "iPhone14,3": "iPhone 13 Pro Max",
+            "iPhone14,7": "iPhone 14",
+            "iPhone14,8": "iPhone 14 Plus",
+            "iPhone15,2": "iPhone 14 Pro",
+            "iPhone15,3": "iPhone 14 Pro Max",
+            "iPhone15,4": "iPhone 15",
+            "iPhone15,5": "iPhone 15 Plus",
+            "iPhone16,1": "iPhone 15 Pro",
+            "iPhone16,2": "iPhone 15 Pro Max",
+            "iPhone17,3": "iPhone 16",
+            "iPhone17,4": "iPhone 16 Plus",
+            "iPhone17,1": "iPhone 16 Pro",
+            "iPhone17,2": "iPhone 16 Pro Max"
+        ]
+        return models[identifier] ?? (identifier.hasPrefix("iPhone") ? "iPhone" : UIDevice.current.model)
+    }
 }
 
 @MainActor
@@ -384,7 +523,7 @@ final class SocialStore {
 
     init(database: LocalDatabase) {
         self.database = database
-        posts = database.posts()
+        posts = []
         stories = database.stories()
     }
 
@@ -395,19 +534,12 @@ final class SocialStore {
     }
 
     var filteredPosts: [Post] {
-        let visible = posts.filter { $0.moderationState != .removed && !$0.author.isBlocked }
-        guard !query.isEmpty else { return visible }
-        return visible.filter {
-            $0.body.localizedCaseInsensitiveContains(query)
-                || $0.author.name.localizedCaseInsensitiveContains(query)
-                || $0.author.username.localizedCaseInsensitiveContains(query)
-                || $0.hashtags.contains(where: { $0.localizedCaseInsensitiveContains(query) })
-        }
+        []
     }
 
     func reload() {
         guard let database else { return }
-        posts = database.posts()
+        posts = []
         stories = database.stories()
         errorMessage = database.lastError
     }
@@ -420,29 +552,7 @@ final class SocialStore {
     }
 
     func createPost(body: String, visibility: PostVisibility, author: User, media: [MediaAttachment] = [], location: String? = nil) {
-        let cleanBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanBody.isEmpty || !media.isEmpty else { return }
-        let post = Post(
-            id: UUID(),
-            author: author,
-            body: cleanBody,
-            createdAt: .now,
-            media: media,
-            likeCount: 0,
-            repostCount: 0,
-            commentCount: 0,
-            viewCount: 0,
-            isLiked: false,
-            isSaved: false,
-            visibility: visibility,
-            location: location,
-            moderationState: .visible,
-            editedAt: nil,
-            hashtags: Self.tokens(in: cleanBody, prefix: "#"),
-            mentions: Self.tokens(in: cleanBody, prefix: "@")
-        )
-        database?.createPost(post)
-        posts.insert(post, at: 0)
+        errorMessage = "Посты скрыты в этой версии Tide."
     }
 
     func editPost(_ id: UUID, body: String) {

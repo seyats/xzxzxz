@@ -24,6 +24,7 @@ final class LocalDatabase {
             BlockRecord.self,
             DraftRecord.self,
             DeviceTokenRecord.self,
+            DeviceSessionRecord.self,
             AuditEventRecord.self,
             BotRecord.self
         ])
@@ -43,6 +44,7 @@ final class LocalDatabase {
         bootstrapIfNeeded()
         purgeLegacyDemoDataIfNeeded()
         purgePostMediaIfNeeded()
+        purgePostsIfNeeded()
     }
 
     func bootstrapIfNeeded() {
@@ -94,6 +96,32 @@ final class LocalDatabase {
         }
     }
 
+    func purgePostsIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "tide.purgedPosts.v2") else { return }
+        let postIDs = Set(fetch(PostRecord.self).map(\.id))
+        guard !postIDs.isEmpty else {
+            defaults.set(true, forKey: "tide.purgedPosts.v2")
+            return
+        }
+        fetch(CommentRecord.self)
+            .filter { postIDs.contains($0.postID) }
+            .forEach(context.delete)
+        fetch(MediaRecord.self)
+            .filter { postIDs.contains($0.ownerID) }
+            .forEach(context.delete)
+        fetch(PostRecord.self).forEach(context.delete)
+        fetch(DraftRecord.self)
+            .filter { $0.kind == "post" }
+            .forEach(context.delete)
+        do {
+            try save()
+            defaults.set(true, forKey: "tide.purgedPosts.v2")
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
     func save() throws {
         if context.hasChanges {
             try context.save()
@@ -114,6 +142,7 @@ final class LocalDatabase {
         fetch(BlockRecord.self).forEach(context.delete)
         fetch(DraftRecord.self).forEach(context.delete)
         fetch(DeviceTokenRecord.self).forEach(context.delete)
+        fetch(DeviceSessionRecord.self).forEach(context.delete)
         fetch(AuditEventRecord.self).forEach(context.delete)
         fetch(BotRecord.self).forEach(context.delete)
         fetch(UserRecord.self).forEach(context.delete)
@@ -363,6 +392,56 @@ final class LocalDatabase {
             post.commentCount += 1
         }
         trySave()
+    }
+
+    func deviceSessions(userID: UUID) -> [DeviceSession] {
+        fetch(DeviceSessionRecord.self, sortedBy: [SortDescriptor(\.lastSeenAt, order: .reverse)])
+            .filter { $0.userID == userID }
+            .map(\.domain)
+    }
+
+    func upsertDeviceSession(_ session: DeviceSession) {
+        fetch(DeviceSessionRecord.self)
+            .filter { $0.userID == session.userID && $0.isCurrent && $0.id != session.id }
+            .forEach { $0.isCurrent = false }
+        if let record = fetch(DeviceSessionRecord.self).first(where: { $0.id == session.id }) {
+            record.userID = session.userID
+            record.deviceName = session.deviceName
+            record.systemVersion = session.systemVersion
+            record.appVersion = session.appVersion
+            record.lastSeenAt = session.lastSeenAt
+            record.isCurrent = session.isCurrent
+        } else {
+            context.insert(DeviceSessionRecord(session: session))
+        }
+        trySave()
+    }
+
+    func deleteDeviceSession(_ id: UUID) {
+        guard let record = fetch(DeviceSessionRecord.self).first(where: { $0.id == id && !$0.isCurrent }) else { return }
+        context.delete(record)
+        trySave()
+    }
+
+    func protectedLocalMediaURLs() -> Set<URL> {
+        var urls = Set<URL>()
+        for user in fetch(UserRecord.self) {
+            [user.avatarImageURLString, user.coverImageURLString]
+                .compactMap { $0.flatMap(URL.init(string:)) }
+                .filter(\.isFileURL)
+                .forEach { urls.insert($0.standardizedFileURL) }
+        }
+        for story in fetch(StoryRecord.self) {
+            if let url = story.mediaURLString.flatMap(URL.init(string:)), url.isFileURL {
+                urls.insert(url.standardizedFileURL)
+            }
+        }
+        for message in fetch(MessageRecord.self) {
+            if let url = message.attachmentURLString.flatMap(URL.init(string:)), url.isFileURL {
+                urls.insert(url.standardizedFileURL)
+            }
+        }
+        return urls
     }
 
     func reports() -> [ModerationReport] {

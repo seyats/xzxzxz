@@ -20,8 +20,8 @@ struct EmailLoginView: View {
                 header.padding(.bottom, 40)
 
                 if isSignUp {
-                    inputBlock(title: "\u{0418}\u{043c}\u{044f}") {
-                        TextField("\u{0418}\u{043c}\u{044f} \u{0424}\u{0430}\u{043c}\u{0438}\u{043b}\u{0438}\u{044f}", text: $displayName)
+                    inputBlock(title: "Имя") {
+                        TextField("Имя Фамилия", text: $displayName)
                             .textContentType(.name)
                     }
                     .padding(.bottom, 20)
@@ -29,7 +29,7 @@ struct EmailLoginView: View {
 
                 emailBlock.padding(.bottom, 24)
 
-                inputBlock(title: "\u{041f}\u{0430}\u{0440}\u{043e}\u{043b}\u{044c}") {
+                inputBlock(title: "Пароль") {
                     HStack {
                         Group {
                             if isPasswordVisible {
@@ -50,7 +50,7 @@ struct EmailLoginView: View {
                 if !isSignUp {
                     HStack {
                         Spacer()
-                        Button("\u{0417}\u{0430}\u{0431}\u{044b}\u{043b}\u{0438} \u{043f}\u{0430}\u{0440}\u{043e}\u{043b}\u{044c}?") { }
+                        Button("Забыли пароль?") { }
                             .font(.system(size: 14))
                             .foregroundColor(.gray)
                     }
@@ -62,7 +62,7 @@ struct EmailLoginView: View {
                         if dependencies.session.isWorking {
                             ProgressView().tint(.black)
                         } else {
-                            Text(isSignUp ? "\u{0421}\u{043e}\u{0437}\u{0434}\u{0430}\u{0442}\u{044c} \u{0430}\u{043a}\u{043a}\u{0430}\u{0443}\u{043d}\u{0442}" : "\u{0412}\u{043e}\u{0439}\u{0442}\u{0438}")
+                            Text(isSignUp ? "Создать аккаунт" : "Войти")
                                 .font(.system(size: 16, weight: .semibold))
                         }
                         Spacer()
@@ -86,9 +86,9 @@ struct EmailLoginView: View {
                 Spacer()
 
                 HStack(spacing: 4) {
-                    Text(isSignUp ? "\u{0423}\u{0436}\u{0435} \u{0435}\u{0441}\u{0442}\u{044c} \u{0430}\u{043a}\u{043a}\u{0430}\u{0443}\u{043d}\u{0442}?" : "\u{041d}\u{0435}\u{0442} \u{0430}\u{043a}\u{043a}\u{0430}\u{0443}\u{043d}\u{0442}\u{0430}?")
+                    Text(isSignUp ? "Уже есть аккаунт?" : "Нет аккаунта?")
                         .foregroundColor(.gray)
-                    Button(isSignUp ? "\u{0412}\u{043e}\u{0439}\u{0442}\u{0438}" : "\u{0420}\u{0435}\u{0433}\u{0438}\u{0441}\u{0442}\u{0440}\u{0430}\u{0446}\u{0438}\u{044f}") { isSignUp.toggle() }
+                    Button(isSignUp ? "Войти" : "Регистрация") { isSignUp.toggle() }
                         .foregroundColor(.white)
                         .fontWeight(.semibold)
                 }
@@ -109,11 +109,11 @@ struct EmailLoginView: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("\u{0421} \u{0432}\u{043e}\u{0437}\u{0432}\u{0440}\u{0430}\u{0449}\u{0435}\u{043d}\u{0438}\u{0435}\u{043c}")
+                Text("С возвращением")
                     .font(TideTypography.display)
                     .foregroundColor(.white)
 
-                Text("\u{0412}\u{043e}\u{0439}\u{0434}\u{0438}\u{0442}\u{0435}, \u{0447}\u{0442}\u{043e}\u{0431}\u{044b} \u{043f}\u{0440}\u{043e}\u{0434}\u{043e}\u{043b}\u{0436}\u{0438}\u{0442}\u{044c}")
+                Text("Войдите, чтобы продолжить")
                     .font(.system(size: 16, weight: .regular))
                     .foregroundColor(.gray)
             }
@@ -124,8 +124,8 @@ struct EmailLoginView: View {
 
     private var emailBlock: some View {
         VStack(alignment: .leading, spacing: 10) {
-            inputBlock(title: "\u{042d}\u{043b}. \u{043f}\u{043e}\u{0447}\u{0442}\u{0430}") {
-                TextField("\u{043f}\u{043e}\u{0447}\u{0442}\u{0430}@\u{043f}\u{0440}\u{0438}\u{043c}\u{0435}\u{0440}.\u{0440}\u{0443}", text: $email)
+            inputBlock(title: "Эл. почта") {
+                TextField("почта@пример.ру", text: $email)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(.emailAddress)
@@ -184,7 +184,7 @@ struct EmailLoginView: View {
         VStack(spacing: 24) {
             HStack {
                 Rectangle().fill(Color(white: 0.15)).frame(height: 0.5)
-                Text("\u{0438}\u{043b}\u{0438} \u{0432}\u{043e}\u{0439}\u{0434}\u{0438}\u{0442}\u{0435} \u{0447}\u{0435}\u{0440}\u{0435}\u{0437}")
+                Text("или войдите через")
                     .font(.system(size: 14))
                     .foregroundColor(.gray)
                     .padding(.horizontal, 8)

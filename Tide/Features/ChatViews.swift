@@ -1,5 +1,8 @@
+import AVFoundation
 import PhotosUI
 import SwiftUI
+import UniformTypeIdentifiers
+import UIKit
 
 struct ChatListView: View {
     @Environment(AppDependencies.self) private var dependencies
@@ -125,80 +128,100 @@ struct ChatRow: View {
 
 struct ConversationView: View {
     @Environment(AppDependencies.self) private var dependencies
+    @Environment(\.dismiss) private var dismiss
     let chatID: UUID
     @State private var draft = ""
     @State private var selectedItem: PhotosPickerItem?
     @State private var attachment: ComposerMedia?
     @State private var replyTo: Message?
+    @State private var isImportingFile = false
+    @State private var isShowingCamera = false
+    @State private var recorder: AVAudioRecorder?
+    @State private var isRecordingVoice = false
+    @State private var recorderError: String?
 
     var body: some View {
         if let chat = dependencies.messenger.chat(id: chatID) {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 7) {
-                        ForEach(chat.messages.filter { $0.deletedAt == nil || !$0.body.isEmpty }) { message in
-                            MessageBubble(
-                                message: message,
-                                chatID: chatID,
-                                isOutgoing: message.senderID == dependencies.session.currentUser?.id
-                            ) {
-                                replyTo = message
+            ZStack {
+                chatBackdrop
+                VStack(spacing: 0) {
+                    chatHeader(chat)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 8)
+
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 7) {
+                                ForEach(chat.messages.filter { $0.deletedAt == nil || !$0.body.isEmpty || $0.attachmentURL != nil }) { message in
+                                    MessageBubble(
+                                        message: message,
+                                        chatID: chatID,
+                                        isOutgoing: message.senderID == dependencies.session.currentUser?.id
+                                    ) {
+                                        replyTo = message
+                                    }
+                                    .id(message.id)
+                                    .transition(.asymmetric(
+                                        insertion: .opacity.combined(with: .move(edge: .bottom)).combined(with: .scale(scale: 0.96)),
+                                        removal: .opacity
+                                    ))
+                                }
                             }
-                            .id(message.id)
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .move(edge: .bottom)).combined(with: .scale(scale: 0.96)),
-                                removal: .opacity
-                            ))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
                         }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                }
-                .background(chatBackdrop)
-                .defaultScrollAnchor(.bottom)
-                .safeAreaInset(edge: .bottom) { composer }
-                .onChange(of: chat.messages.count) { _, _ in
-                    if let id = chat.messages.last?.id {
-                        withAnimation(.easeInOut(duration: 0.52)) {
-                            proxy.scrollTo(id, anchor: .bottom)
+                        .defaultScrollAnchor(.bottom)
+                        .onChange(of: chat.messages.count) { _, _ in
+                            if let id = chat.messages.last?.id {
+                                withAnimation(.easeInOut(duration: 0.52)) {
+                                    proxy.scrollTo(id, anchor: .bottom)
+                                }
+                            }
                         }
+                        .animation(.easeInOut(duration: 0.38), value: chat.messages.count)
                     }
+                    composer
                 }
-                .animation(.easeInOut(duration: 0.38), value: chat.messages.count)
             }
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .toolbar(.hidden, for: .tabBar)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    ConversationToolbarTitle(chat: chat)
-                }
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button { dependencies.router.push(.call(chatID, false)) } label: {
-                        Image(systemName: "phone")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.primary)
-                            .frame(width: 34, height: 34)
-                            .background(AuthGlassBackground(cornerRadius: 17, interactive: true))
-                    }
-                    .buttonStyle(AuthSmoothButtonStyle())
-                    Button { dependencies.router.push(.call(chatID, true)) } label: {
-                        Image(systemName: "video")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.primary)
-                            .frame(width: 34, height: 34)
-                            .background(AuthGlassBackground(cornerRadius: 17, interactive: true))
-                    }
-                    .buttonStyle(AuthSmoothButtonStyle())
-                }
-            }
             .task { dependencies.messenger.markRead(chatID) }
-            .onChange(of: selectedItem) { item in
+            .onChange(of: selectedItem) { _, item in
                 guard let item else { return }
                 Task {
                     if let imported = try? await MediaLibrary.shared.importItems([item]) {
                         attachment = imported.first
                     }
+                    selectedItem = nil
                 }
+            }
+            .fileImporter(isPresented: $isImportingFile, allowedContentTypes: [.item], allowsMultipleSelection: false) { result in
+                guard case .success(let urls) = result, let url = urls.first else { return }
+                Task {
+                    if let media = try? await MediaLibrary.shared.importFile(url) {
+                        await MainActor.run { attachment = media }
+                    }
+                }
+            }
+            .fullScreenCover(isPresented: $isShowingCamera) {
+                CameraCaptureView { image in
+                    isShowingCamera = false
+                    guard let data = image.jpegData(compressionQuality: 0.88) else { return }
+                    Task {
+                        if let media = try? await MediaLibrary.shared.importImageData(data) {
+                            await MainActor.run { attachment = media }
+                        }
+                    }
+                } onCancel: {
+                    isShowingCamera = false
+                }
+            }
+            .alert("Не удалось записать голос", isPresented: Binding(get: { recorderError != nil }, set: { if !$0 { recorderError = nil } })) {
+                Button("ОК", role: .cancel) {}
+            } message: {
+                Text(recorderError ?? "")
             }
         } else {
             EmptyStateView(
@@ -210,16 +233,60 @@ struct ConversationView: View {
     }
 
     private var chatBackdrop: some View {
-        LinearGradient(
-            colors: [
-                Color(uiColor: .systemBackground),
-                Color.primary.opacity(0.04),
-                Color(uiColor: .systemBackground)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        ZStack {
+            TideBackdropView(configuration: dependencies.preferences.backdropConfiguration())
+            Color.black.opacity(0.18).ignoresSafeArea()
+        }
+    }
+
+    private func chatHeader(_ chat: Chat) -> some View {
+        HStack(spacing: 12) {
+            Button { dismiss() } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 26, weight: .bold))
+                    if chat.unreadCount > 0 {
+                        Text("\(chat.unreadCount)")
+                            .font(.system(size: 18, weight: .black, design: .rounded))
+                            .foregroundStyle(.black)
+                            .frame(width: 30, height: 30)
+                            .background(.white, in: Circle())
+                    }
+                }
+                .foregroundStyle(.white)
+                .frame(minWidth: 58, minHeight: 54)
+                .background(AuthGlassBackground(cornerRadius: 27, interactive: true))
+            }
+            .buttonStyle(.plain)
+
+            VStack(spacing: 2) {
+                Text(chat.title)
+                    .font(.system(size: 21, weight: .black, design: .rounded))
+                    .lineLimit(1)
+                Text(lastSeenText(for: chat))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(AuthGlassBackground(cornerRadius: 27, interactive: false))
+
+            Button {
+                if let profile = profileTarget(for: chat) {
+                    dependencies.router.push(.profile(profile))
+                }
+            } label: {
+                AvatarView(user: profileTarget(for: chat) ?? chat.participants.first ?? fallbackChatUser(chat), size: 54)
+                    .overlay(alignment: .bottomTrailing) {
+                        Circle()
+                            .fill(.green)
+                            .frame(width: 9, height: 9)
+                            .opacity(chat.kind == .direct ? 1 : 0)
+                    }
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private var composer: some View {
@@ -252,32 +319,34 @@ struct ConversationView: View {
             }
 
             HStack(spacing: 9) {
-                PhotosPicker(selection: $selectedItem, matching: .any(of: [.images, .videos])) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(width: 34, height: 34)
-                        .foregroundStyle(.primary)
-                        .tideGlass(interactive: true, cornerRadius: 17, tint: Color.primary.opacity(0.05))
-                }
+                attachmentMenu
 
-                TextField("Сообщение", text: $draft, axis: .vertical)
-                    .lineLimit(1...5)
-                    .padding(.horizontal, 13)
-                    .padding(.vertical, 9)
-                    .background(AuthGlassBackground(cornerRadius: 18, interactive: true))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(TidePalette.separator, lineWidth: 0.6)
-                    }
-
-                Button(action: send) {
-                    Image(systemName: draft.isEmpty && attachment == nil ? "mic.fill" : "arrow.up")
-                        .font(.system(size: 17, weight: .bold))
-                        .frame(width: 34, height: 34)
-                        .foregroundStyle(canSend ? Color(uiColor: .systemBackground) : .secondary)
-                        .background(canSend ? Color.primary : .secondary.opacity(0.16), in: Circle())
+                HStack(spacing: 8) {
+                    TextField("Сообщение", text: $draft, axis: .vertical)
+                        .lineLimit(1...5)
+                        .textInputAutocapitalization(.sentences)
+                    Image(systemName: attachment == nil ? "circle.lefthalf.filled" : "paperclip.circle.fill")
+                        .font(.system(size: 23, weight: .semibold))
+                        .foregroundStyle(.secondary)
                 }
-                .disabled(!canSend)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(AuthGlassBackground(cornerRadius: 23, interactive: true))
+
+                Button(action: primaryComposerAction) {
+                    Image(systemName: canSend ? "arrow.up" : isRecordingVoice ? "stop.fill" : "mic.fill")
+                        .font(.system(size: 22, weight: .bold))
+                        .frame(width: 52, height: 52)
+                        .foregroundStyle(.white)
+                        .background {
+                            Circle()
+                                .fill(isRecordingVoice ? Color.red.opacity(0.82) : Color.primary.opacity(0.22))
+                                .background(AuthGlassBackground(cornerRadius: 26, interactive: true).clipShape(Circle()))
+                        }
+                        .scaleEffect(isRecordingVoice ? 1.08 : 1)
+                        .animation(.easeInOut(duration: 0.32), value: isRecordingVoice)
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 9)
@@ -293,6 +362,39 @@ struct ConversationView: View {
 
     private var canSend: Bool {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || attachment != nil
+    }
+
+    private var attachmentMenu: some View {
+        Menu {
+            Button {
+                isImportingFile = true
+            } label: {
+                Label("Прикрепить файл", systemImage: "paperclip")
+            }
+            Button {
+                isShowingCamera = true
+            } label: {
+                Label("Снять фото", systemImage: "camera")
+            }
+            PhotosPicker(selection: $selectedItem, matching: .any(of: [.images, .videos])) {
+                Label("Фото/видео из галереи", systemImage: "photo.on.rectangle")
+            }
+        } label: {
+            Image(systemName: "paperclip")
+                .font(.system(size: 30, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(AuthGlassBackground(cornerRadius: 26, interactive: true))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func primaryComposerAction() {
+        if canSend {
+            send()
+        } else {
+            toggleVoiceRecording()
+        }
     }
 
     private func send() {
@@ -311,10 +413,104 @@ struct ConversationView: View {
                 to: chatID,
                 senderID: senderID,
                 attachmentURL: outgoingAttachment?.url,
-                attachmentKind: outgoingAttachment?.kind == .video ? .video : outgoingAttachment == nil ? .none : .photo,
+                attachmentKind: outgoingAttachment?.attachmentKind ?? .none,
                 replyTo: replyID
             )
         }
+    }
+
+    private func toggleVoiceRecording() {
+        if isRecordingVoice {
+            stopVoiceRecording(sendResult: true)
+        } else {
+            startVoiceRecording()
+        }
+    }
+
+    private func startVoiceRecording() {
+        AVAudioSession.sharedInstance().requestRecordPermission { granted in
+            Task { @MainActor in
+                guard granted else {
+                    recorderError = "Разрешите доступ к микрофону в настройках iOS."
+                    return
+                }
+                do {
+                    let session = AVAudioSession.sharedInstance()
+                    try session.setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker])
+                    try session.setActive(true)
+                    let url = try await MediaLibrary.shared.voiceRecordingURL()
+                    let settings: [String: Any] = [
+                        AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                        AVSampleRateKey: 44_100,
+                        AVNumberOfChannelsKey: 1,
+                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                    ]
+                    let recorder = try AVAudioRecorder(url: url, settings: settings)
+                    recorder.record()
+                    self.recorder = recorder
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        isRecordingVoice = true
+                    }
+                } catch {
+                    recorderError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func stopVoiceRecording(sendResult: Bool) {
+        guard let recorder else { return }
+        recorder.stop()
+        self.recorder = nil
+        withAnimation(.easeInOut(duration: 0.25)) {
+            isRecordingVoice = false
+        }
+        guard sendResult else { return }
+        let url = recorder.url
+        let media = ComposerMedia(
+            id: UUID(),
+            url: url,
+            kind: .link,
+            aspectRatio: 1,
+            attachmentKind: .audio,
+            filename: "Голосовое сообщение.m4a",
+            byteCount: Int64((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+        )
+        attachment = media
+        send()
+    }
+
+    private func profileTarget(for chat: Chat) -> User? {
+        if chat.kind == .direct, let currentID = dependencies.session.currentUser?.id {
+            return chat.participants.first { $0.id != currentID }
+        }
+        return chat.participants.first
+    }
+
+    private func fallbackChatUser(_ chat: Chat) -> User {
+        User(
+            id: chat.id,
+            name: chat.title,
+            username: chat.title.lowercased().replacingOccurrences(of: " ", with: ""),
+            biography: "",
+            avatarSymbol: chat.avatarSymbol,
+            isVerified: false,
+            isAdministrator: false,
+            followers: 0,
+            following: 0,
+            joinedAt: .now
+        )
+    }
+
+    private func lastSeenText(for chat: Chat) -> String {
+        guard chat.kind == .direct, let user = profileTarget(for: chat) else {
+            return "\(chat.participants.count) участников"
+        }
+        let seconds = max(0, Int(Date().timeIntervalSince(user.lastSeenAt)))
+        if seconds < 90 { return "в сети" }
+        if seconds < 3600 { return "был(а) \(max(1, seconds / 60)) минут назад" }
+        if seconds < 86_400 { return "был(а) \(max(1, seconds / 3600)) часов назад" }
+        return "был(а) \(max(1, seconds / 86_400)) дней назад"
     }
 }
 
@@ -342,6 +538,48 @@ private struct ConversationToolbarTitle: View {
     }
 }
 
+struct CameraCaptureView: UIViewControllerRepresentable {
+    let onImage: (UIImage) -> Void
+    let onCancel: () -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
+        picker.mediaTypes = ["public.image"]
+        picker.allowsEditing = false
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onImage: onImage, onCancel: onCancel)
+    }
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let onImage: (UIImage) -> Void
+        let onCancel: () -> Void
+
+        init(onImage: @escaping (UIImage) -> Void, onCancel: @escaping () -> Void) {
+            self.onImage = onImage
+            self.onCancel = onCancel
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                onImage(image)
+            } else {
+                onCancel()
+            }
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            onCancel()
+        }
+    }
+}
+
 struct MessageBubble: View {
     @Environment(AppDependencies.self) private var dependencies
     let message: Message
@@ -360,15 +598,8 @@ struct MessageBubble: View {
                         .foregroundStyle(isOutgoing ? .white.opacity(0.72) : .secondary)
                 }
 
-                if message.attachmentKind != .none, let url = message.attachmentURL {
-                    PostMediaCell(media: MediaAttachment(
-                        id: message.id,
-                        kind: message.attachmentKind == .video ? .video : .photo,
-                        url: url,
-                        aspectRatio: 1.4
-                    ))
-                    .frame(maxWidth: 250, minHeight: 140, maxHeight: 220)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                if message.attachmentKind != .none {
+                    attachmentContent
                 }
 
                 if !message.body.isEmpty {
@@ -391,13 +622,13 @@ struct MessageBubble: View {
                         .offset(y: 12)
                 }
             }
-            .padding(.horizontal, message.attachmentKind == .none ? 13 : 3)
-            .padding(.vertical, message.attachmentKind == .none ? 9 : 3)
+            .padding(.horizontal, isVisualMedia ? 3 : 13)
+            .padding(.vertical, isVisualMedia ? 3 : 9)
             .background(bubbleBackground)
             .foregroundStyle(isOutgoing ? .white : TidePalette.ink)
-            .clipShape(RoundedRectangle(cornerRadius: message.attachmentKind == .none ? 18 : 19, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: isVisualMedia ? 19 : 18, style: .continuous))
             .overlay {
-                if message.attachmentKind != .none {
+                if isVisualMedia {
                     RoundedRectangle(cornerRadius: 19, style: .continuous)
                         .stroke(.white.opacity(0.14), lineWidth: 0.7)
                 }
@@ -426,10 +657,47 @@ struct MessageBubble: View {
     }
 
     private var bubbleBackground: some ShapeStyle {
-        if message.attachmentKind != .none {
+        if isVisualMedia {
             return AnyShapeStyle(.clear)
         }
         return isOutgoing ? AnyShapeStyle(Color.primary.opacity(0.24)) : AnyShapeStyle(.regularMaterial)
+    }
+
+    private var isVisualMedia: Bool {
+        message.attachmentKind == .photo || message.attachmentKind == .video
+    }
+
+    @ViewBuilder
+    private var attachmentContent: some View {
+        if let url = message.attachmentURL, isVisualMedia {
+            PostMediaCell(media: MediaAttachment(
+                id: message.id,
+                kind: message.attachmentKind == .video ? .video : .photo,
+                url: url,
+                aspectRatio: 1.4
+            ))
+            .frame(maxWidth: 250, minHeight: 140, maxHeight: 220)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        } else {
+            HStack(spacing: 10) {
+                Image(systemName: message.attachmentKind == .audio ? "waveform" : "doc.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .frame(width: 38, height: 38)
+                    .background(.white.opacity(isOutgoing ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(message.attachmentKind == .audio ? "Голосовое сообщение" : fileName)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                    Text(message.attachmentKind == .audio ? "Аудио" : "Файл")
+                        .font(.caption)
+                        .foregroundStyle(isOutgoing ? .white.opacity(0.68) : .secondary)
+                }
+            }
+        }
+    }
+
+    private var fileName: String {
+        message.attachmentURL?.lastPathComponent.removingPercentEncoding ?? "Файл"
     }
 
     @ViewBuilder
