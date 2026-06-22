@@ -47,7 +47,7 @@ struct FeedView: View {
         }
         .searchable(text: $social.query, prompt: String(localized: "feed_search_prompt"))
         .refreshable { await social.refresh() }
-        .navigationTitle("Tide")
+        .navigationTitle("Лента")
         .scrollContentBackground(.hidden)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {

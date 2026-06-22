@@ -213,46 +213,45 @@ struct EditProfileView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 18) {
-                    bannerSection
+                VStack(spacing: 16) {
+                    heroCard
                         .padding(.top, 10)
 
                     avatarBlock
-                        .padding(.top, -58)
 
                     VStack(spacing: 12) {
-                        profileField(title: "Name") {
-                            TextField("", text: $name)
+                        profileField(title: "Имя") {
+                            TextField("Имя", text: $name)
                                 .textContentType(.name)
                         }
-                        profileField(title: "Username") {
-                            TextField("", text: $username)
+                        profileField(title: "Имя пользователя") {
+                            TextField("@никнейм", text: $username)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
                                 .textContentType(.username)
                         }
-                        profileField(title: "Bio") {
+                        profileField(title: "О себе") {
                             TextEditor(text: $biography)
-                                .frame(minHeight: 100)
+                                .frame(minHeight: 116)
                                 .scrollContentBackground(.hidden)
                         }
-                        profileField(title: "Location") {
-                            TextField("", text: $location)
+                        profileField(title: "Локация") {
+                            TextField("Город", text: $location)
                                 .textContentType(.fullStreetAddress)
                         }
-                        profileField(title: "Website") {
-                            TextField("", text: $website)
+                        profileField(title: "Сайт") {
+                            TextField("Ссылка", text: $website)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
                                 .keyboardType(.URL)
                                 .textContentType(.URL)
                         }
-                        profileField(title: "Birthday") {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Toggle("Show birthday", isOn: $hasBirthday)
+                        profileField(title: "Дата рождения") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Toggle("Показывать дату рождения", isOn: $hasBirthday)
                                     .toggleStyle(.switch)
                                 if hasBirthday {
-                                    DatePicker("", selection: $birthday, displayedComponents: .date)
+                                    DatePicker("Дата", selection: $birthday, displayedComponents: .date)
                                         .labelsHidden()
                                         .datePickerStyle(.compact)
                                 }
@@ -265,15 +264,27 @@ struct EditProfileView: View {
             }
             .scrollContentBackground(.hidden)
             .background(
-                LinearGradient(
-                    colors: [
-                        .black,
-                        .white.opacity(0.02),
-                        .black
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                ZStack {
+                    Color.black
+                    RadialGradient(
+                        colors: [
+                            .white.opacity(0.08),
+                            .clear
+                        ],
+                        center: .topTrailing,
+                        startRadius: 24,
+                        endRadius: 420
+                    )
+                    RadialGradient(
+                        colors: [
+                            .white.opacity(0.05),
+                            .clear
+                        ],
+                        center: .bottomLeading,
+                        startRadius: 18,
+                        endRadius: 360
+                    )
+                }
                 .ignoresSafeArea()
             )
             .toolbar {
@@ -283,12 +294,13 @@ struct EditProfileView: View {
                     } label: {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
                             .frame(width: 38, height: 38)
                             .background(AuthGlassBackground(cornerRadius: 18, interactive: true))
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") {
+                    Button("Готово") {
                         dependencies.session.updateProfile(
                             name: name,
                             username: username,
@@ -310,6 +322,7 @@ struct EditProfileView: View {
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 let user = dependencies.session.currentUser
@@ -331,7 +344,7 @@ struct EditProfileView: View {
         }
     }
 
-    private var bannerSection: some View {
+    private var heroCard: some View {
         ZStack(alignment: .bottomLeading) {
             Group {
                 if let coverImageURL, let image = UIImage(contentsOfFile: coverImageURL.path) {
@@ -342,7 +355,7 @@ struct EditProfileView: View {
                     ZStack {
                         LinearGradient(
                             colors: [
-                                .white.opacity(0.18),
+                                .white.opacity(0.16),
                                 .white.opacity(0.04),
                                 .clear
                             ],
@@ -360,36 +373,36 @@ struct EditProfileView: View {
                     }
                 }
             }
-            .frame(height: 220)
+            .frame(height: 188)
             .frame(maxWidth: .infinity)
             .clipped()
             .overlay(
-                RoundedRectangle(cornerRadius: 34, style: .continuous)
-                    .stroke(.white.opacity(0.14), lineWidth: 0.6)
+                RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    .stroke(.white.opacity(0.12), lineWidth: 0.6)
             )
-            .background(AuthGlassBackground(cornerRadius: 34, interactive: false))
+            .background(AuthGlassBackground(cornerRadius: 32, interactive: false))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Edit Profile")
+                Text("Профиль")
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.95))
-                Text("Liquid glass banner")
+                    .foregroundStyle(.white.opacity(0.98))
+                Text("Чистое жидкое стекло")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(.white.opacity(0.58))
             }
             .padding(18)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
         .padding(.horizontal, 16)
     }
 
     private var avatarBlock: some View {
         VStack(spacing: 10) {
-            AvatarView(user: previewUser, size: 114)
-                .padding(5)
-                .background(.black.opacity(0.18), in: Circle())
-                .overlay(Circle().stroke(.white.opacity(0.18), lineWidth: 0.7))
-            Text("Avatar and cover remain in sync")
+            AvatarView(user: previewUser, size: 112)
+                .padding(6)
+                .background(.white.opacity(0.06), in: Circle())
+                .overlay(Circle().stroke(.white.opacity(0.16), lineWidth: 0.7))
+            Text("Аватар и обложка обновляются вместе")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
         }
@@ -403,6 +416,7 @@ struct EditProfileView: View {
             content()
                 .font(.system(size: 16, weight: .regular))
                 .tint(.white)
+                .foregroundStyle(.white)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)

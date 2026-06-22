@@ -26,6 +26,7 @@ struct EmailLoginView: View {
                 if isSignUp {
                     inputBlock(title: "Имя") {
                         TextField("Имя Фамилия", text: $displayName)
+                            .textContentType(.name)
                     }
                     .padding(.bottom, 20)
                 }
@@ -137,7 +138,7 @@ struct EmailLoginView: View {
     private var emailBlock: some View {
         VStack(alignment: .leading, spacing: 10) {
             inputBlock(title: "Эл. почта") {
-                TextField("name@example.com", text: $email)
+                TextField("почта@пример.ру", text: $email)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(.emailAddress)
