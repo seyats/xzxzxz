@@ -60,20 +60,16 @@ struct TideBackdropView: View {
     private var fallbackBackdrop: some View {
         ZStack {
             LinearGradient(
-                colors: [Color.black, Color.primary.opacity(0.15), Color.white.opacity(0.92)],
+                colors: [Color.black, Color.primary.opacity(0.12), Color(uiColor: .systemBackground).opacity(0.94)],
                 startPoint: .top,
                 endPoint: .bottom
             )
-            Circle()
-                .fill(Color.red.opacity(0.18))
-                .frame(width: 300, height: 300)
-                .blur(radius: 24)
-                .offset(x: -120, y: 220)
-            Circle()
-                .fill(Color.green.opacity(0.16))
-                .frame(width: 260, height: 260)
-                .blur(radius: 30)
-                .offset(x: 100, y: -220)
+            LinearGradient(
+                colors: [.white.opacity(0.08), .clear, .white.opacity(0.05)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .blur(radius: 18)
         }
     }
 }

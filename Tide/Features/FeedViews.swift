@@ -18,7 +18,7 @@ struct FeedView: View {
                         EmptyStateView(symbol: "text.page", title: "Постов нет", message: "Подпишитесь на людей или создайте первый пост.")
                     } else {
                         ForEach(filteredPosts) { post in
-                            PostCard(post: post)
+                            PostCard(post: post, mode: .feed)
                             Divider().padding(.leading, 68)
                         }
                     }
@@ -125,6 +125,13 @@ struct StoryRail: View {
 struct PostCard: View {
     @Environment(AppDependencies.self) private var dependencies
     let post: Post
+    var mode: Mode = .feed
+    @State private var selectedMedia: SelectedPostMedia?
+
+    enum Mode {
+        case feed
+        case detail
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -146,37 +153,61 @@ struct PostCard: View {
                         }
                     } label: { Image(systemName: "ellipsis") }
                 }
-                Text(post.body).frame(maxWidth: .infinity, alignment: .leading)
-                if !post.media.isEmpty { PostMediaGrid(media: post.media) }
+                Text(post.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture { openPostIfNeeded() }
+                if !post.media.isEmpty {
+                    PostMediaGrid(media: post.media) { index in
+                        selectedMedia = SelectedPostMedia(index: index)
+                    }
+                }
                 if let location = post.location {
                     Label(location, systemImage: "location.fill").font(.caption).foregroundStyle(.secondary)
                 }
-                PostActions(post: post)
+                PostActions(post: post, opensReplies: mode == .feed)
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .contentShape(Rectangle())
-        .onTapGesture { dependencies.router.push(.post(post.id)) }
         .accessibilityElement(children: .contain)
+        .fullScreenCover(item: $selectedMedia) { item in
+            MediaViewerView(media: post.media, index: item.index)
+        }
     }
+
+    private func openPostIfNeeded() {
+        guard mode == .feed else { return }
+        withAnimation(.easeInOut(duration: 0.42)) {
+            dependencies.router.push(.post(post.id))
+        }
+    }
+}
+
+private struct SelectedPostMedia: Identifiable {
+    let id = UUID()
+    let index: Int
 }
 
 struct PostActions: View {
     @Environment(AppDependencies.self) private var dependencies
     let post: Post
+    var opensReplies = true
 
     var body: some View {
         HStack {
-            action("bubble.left", post.commentCount) { dependencies.router.push(.post(post.id)) }
+            action("bubble.left", post.commentCount) {
+                guard opensReplies else { return }
+                dependencies.router.push(.post(post.id))
+            }
             Spacer()
-            action("arrow.2.squarepath", post.repostCount, color: TidePalette.success) { dependencies.social.repost(post.id) }
+            action("arrow.2.squarepath", post.repostCount, color: TidePalette.positive) { dependencies.social.repost(post.id) }
             Spacer()
             action(post.isLiked ? "heart.fill" : "heart", post.likeCount, color: post.isLiked ? TidePalette.danger : .secondary) {
                 dependencies.social.toggleLike(post.id)
             }
             Spacer()
-            action(post.isSaved ? "bookmark.fill" : "bookmark", nil, color: post.isSaved ? TidePalette.success : .secondary) { dependencies.social.toggleSave(post.id) }
+            action(post.isSaved ? "bookmark.fill" : "bookmark", nil, color: post.isSaved ? TidePalette.positive : .secondary) { dependencies.social.toggleSave(post.id) }
             Spacer()
             action("square.and.arrow.up", nil) {
                 dependencies.router.sheet = .share(URL(string: "https://tide.app/post/\(post.id)")!)
@@ -185,15 +216,23 @@ struct PostActions: View {
     }
 
     private func action(_ symbol: String, _ count: Int?, color: Color = .secondary, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Button {
+            withAnimation(.easeInOut(duration: 0.38)) {
+                action()
+            }
+        } label: {
             HStack(spacing: 4) {
                 Image(systemName: symbol)
                 if let count { Text(count.formatted(.number.notation(.compactName))).font(.caption) }
             }
             .foregroundStyle(color)
+            .padding(.horizontal, 8)
+            .frame(height: 30)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(TidePalette.separator, lineWidth: 0.5))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TideGlassButtonStyle(tint: color, cornerRadius: 15, minHeight: 30))
     }
 }
 
@@ -333,7 +372,7 @@ struct PostDetailView: View {
                 ScrollView {
                     VStack(spacing: 18) {
                         topBar
-                        PostCard(post: post)
+                        PostCard(post: post, mode: .detail)
                             .background(.clear)
                         repliesSection
                     }
@@ -349,26 +388,21 @@ struct PostDetailView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .navigationBarBackButtonHidden(true)
     }
 
     private func sendReply() {
         guard let authorID = dependencies.session.currentUser?.id else { return }
-        dependencies.social.createComment(postID: postID, authorID: authorID, body: reply)
-        reply = ""
+        withAnimation(.easeInOut(duration: 0.42)) {
+            dependencies.social.createComment(postID: postID, authorID: authorID, body: reply)
+            reply = ""
+        }
     }
 
     private var topBar: some View {
         HStack {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(width: 36, height: 36)
-                    .foregroundStyle(.primary)
-                    .background(AuthGlassBackground(cornerRadius: 18, interactive: true))
-            }
+            TideGlassIconButton(symbol: "chevron.left", size: 38) { dismiss() }
             Spacer()
             Text("Пост")
                 .font(.system(size: 15, weight: .semibold))
@@ -407,14 +441,21 @@ struct PostDetailView: View {
                 .lineLimit(1...4)
                 .textInputAutocapitalization(.sentences)
                 .autocorrectionDisabled(false)
+                .tint(.primary)
                 .padding(.vertical, 12)
-            Button("Отправить", action: sendReply)
+            Button(action: sendReply) {
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 16, weight: .black))
+                    .foregroundStyle(.primary)
+                    .frame(width: 36, height: 36)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .overlay(Circle().stroke(TidePalette.separator, lineWidth: 0.6))
+            }
                 .disabled(reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .buttonStyle(TidePrimaryButtonStyle())
-                .frame(minWidth: 110)
+                .buttonStyle(TideGlassButtonStyle(cornerRadius: 18, minHeight: 36))
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
         .background(AuthGlassBackground(cornerRadius: 20, interactive: true))
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)

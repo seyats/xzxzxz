@@ -213,284 +213,468 @@ struct EditProfileView: View {
     @State private var avatarSymbol = "person.crop.circle.fill"
     @State private var avatarImageURL: URL?
     @State private var coverImageURL: URL?
+    @State private var avatarPickerItem: PhotosPickerItem?
+    @State private var coverPickerItem: PhotosPickerItem?
+    @State private var originalSnapshot: EditProfileSnapshot?
+    @State private var validationMessage: String?
+    @FocusState private var focusedField: EditProfileField?
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 22) {
-                    avatarBlock
-                        .padding(.top, 26)
-
-                    VStack(spacing: 10) {
-                        profileField(title: "Имя") {
-                            TextField("Имя", text: $name)
-                                .textContentType(.givenName)
+            ZStack {
+                editProfileBackdrop
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 18) {
+                        topBar
+                        heroCard
+                        if let activeValidationMessage {
+                            validationBanner(activeValidationMessage)
                         }
-                        profileField(title: "Фамилия") {
-                            TextField("Фамилия", text: $surname)
-                                .textContentType(.familyName)
-                        }
-                        profileField(title: "Имя пользователя") {
-                            TextField("@никнейм", text: $username)
+                        editorSection(title: "Основное", subtitle: "Так профиль увидят в Tide.") {
+                            profileTextField("Имя", text: $name, placeholder: "Имя", icon: "person.fill", focus: .name)
+                            profileDivider
+                            profileTextField("Фамилия", text: $surname, placeholder: "Фамилия", icon: "person.text.rectangle", focus: .surname)
+                            profileDivider
+                            profileTextField("Имя пользователя", text: $username, placeholder: "username", icon: "at", focus: .username)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
                                 .textContentType(.username)
                         }
-                    }
-                    .padding(.horizontal, 16)
-
-                    VStack(spacing: 10) {
-                        profileField(title: "О себе") {
-                            TextEditor(text: $biography)
-                                .frame(minHeight: 104)
-                                .scrollContentBackground(.hidden)
-                        }
-                        profileField(title: "Локация") {
-                            TextField("Город", text: $location)
+                        editorSection(title: "О себе") {
+                            VStack(alignment: .leading, spacing: 10) {
+                                fieldLabel("Описание", icon: "text.alignleft")
+                                TextEditor(text: $biography)
+                                    .focused($focusedField, equals: .bio)
+                                    .frame(minHeight: 104)
+                                    .scrollContentBackground(.hidden)
+                                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                                    .foregroundStyle(.white)
+                                    .tint(.white)
+                            }
+                            profileDivider
+                            profileTextField("Локация", text: $location, placeholder: "Город", icon: "location", focus: .location)
                                 .textContentType(.fullStreetAddress)
-                        }
-                        profileField(title: "Сайт") {
-                            TextField("Ссылка", text: $website)
+                            profileDivider
+                            profileTextField("Сайт", text: $website, placeholder: "https://", icon: "link", focus: .website)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
                                 .keyboardType(.URL)
                                 .textContentType(.URL)
                         }
-                    }
-                    .padding(.horizontal, 16)
-
-                    profileField(title: "Дата рождения") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Toggle("Показывать дату рождения", isOn: $hasBirthday)
-                                .toggleStyle(.switch)
-                                .tint(TidePalette.success)
+                        editorSection(title: "Личное", subtitle: "Дата рождения будет сохранена в профиле.") {
+                            Toggle(isOn: $hasBirthday.animation(.easeInOut(duration: 0.35))) {
+                                fieldLabel("Показывать дату рождения", icon: "calendar")
+                            }
+                            .toggleStyle(.switch)
+                            .tint(.white.opacity(0.72))
                             if hasBirthday {
-                                DatePicker("Дата", selection: $birthday, displayedComponents: .date)
-                                    .labelsHidden()
+                                profileDivider
+                                DatePicker("Дата рождения", selection: $birthday, displayedComponents: .date)
                                     .datePickerStyle(.compact)
+                                    .tint(.white)
+                                    .foregroundStyle(.white)
                             }
                         }
+                        .padding(.bottom, 92)
                     }
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 24)
+                    .padding(.top, 14)
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(
-                ZStack {
-                    Color.black
-                    RadialGradient(
-                        colors: [
-                            .white.opacity(0.08),
-                            .clear
-                        ],
-                        center: .topTrailing,
-                        startRadius: 24,
-                        endRadius: 420
-                    )
-                    RadialGradient(
-                        colors: [
-                            .white.opacity(0.05),
-                            .clear
-                        ],
-                        center: .bottomLeading,
-                        startRadius: 18,
-                        endRadius: 360
-                    )
-                }
-                .ignoresSafeArea()
-            )
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.36)) {
-                            dismiss()
-                        }
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 38, height: 38)
-                            .background(AuthGlassBackground(cornerRadius: 18, interactive: true))
-                    }
-                    .buttonStyle(AuthSmoothButtonStyle())
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Готово") {
-                        dependencies.session.updateProfile(
-                            name: editedDisplayName,
-                            username: username,
-                            biography: biography,
-                            location: location,
-                            website: website,
-                            birthday: hasBirthday ? birthday : nil,
-                            avatarSymbol: avatarSymbol,
-                            avatarImageURL: avatarImageURL,
-                            coverImageURL: coverImageURL
-                        )
-                        withAnimation(.easeInOut(duration: 0.36)) {
-                            dismiss()
-                        }
-                    }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .frame(height: 36)
-                    .background(AuthGlassBackground(cornerRadius: 18, interactive: true))
-                    .buttonStyle(AuthSmoothButtonStyle())
-                }
-            }
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .navigationTitle("Изменить профиль")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
-                let user = dependencies.session.currentUser
-                let parts = (user?.name ?? "").split(separator: " ", maxSplits: 1).map(String.init)
-                name = parts.first ?? ""
-                surname = parts.dropFirst().first ?? ""
-                username = user?.username ?? ""
-                biography = user?.biography ?? ""
-                location = user?.location ?? ""
-                website = user?.website ?? ""
-                if let birthdayValue = user?.birthday {
-                    birthday = birthdayValue
-                    hasBirthday = true
-                } else {
-                    hasBirthday = false
-                }
-                avatarSymbol = user?.avatarSymbol ?? avatarSymbol
-                avatarImageURL = user?.avatarImageURL
-                coverImageURL = user?.coverImageURL
+            .toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .bottom) { saveBar }
+            .onAppear(perform: loadCurrentUser)
+            .onChange(of: username) { _, value in
+                let cleaned = sanitizeUsername(value)
+                if cleaned != value { username = cleaned }
             }
+            .onChange(of: avatarPickerItem) { _, item in
+                Task { await importProfileImage(item, target: .avatar) }
+            }
+            .onChange(of: coverPickerItem) { _, item in
+                Task { await importProfileImage(item, target: .cover) }
+            }
+        }
+    }
+
+    private var topBar: some View {
+        HStack(spacing: 12) {
+            TideGlassIconButton(symbol: "xmark", tint: .white, size: 40) {
+                withAnimation(.easeInOut(duration: 0.36)) { dismiss() }
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Изменить профиль")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("Стеклянный редактор Tide")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.56))
+            }
+            Spacer()
         }
     }
 
     private var heroCard: some View {
         ZStack(alignment: .bottomLeading) {
-            Group {
-                if let coverImageURL, let image = UIImage(contentsOfFile: coverImageURL.path) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    ZStack {
-                        LinearGradient(
-                            colors: [
-                                .white.opacity(0.16),
-                                .white.opacity(0.04),
-                                .clear
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                        Circle()
-                            .fill(.white.opacity(0.14))
-                            .frame(width: 220, height: 220)
-                            .offset(x: 98, y: -56)
-                        Circle()
-                            .fill(.white.opacity(0.07))
-                            .frame(width: 140, height: 140)
-                            .offset(x: -92, y: 42)
-                    }
+            coverPreview
+                .frame(height: 214)
+                .frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 34, style: .continuous)
+                        .stroke(.white.opacity(0.16), lineWidth: 0.8)
                 }
-            }
-            .frame(height: 188)
-            .frame(maxWidth: .infinity)
-            .clipped()
-            .overlay(
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .stroke(.white.opacity(0.12), lineWidth: 0.6)
-            )
-            .background(AuthGlassBackground(cornerRadius: 32, interactive: false))
+                .shadow(color: .black.opacity(0.32), radius: 26, y: 18)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Профиль")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.98))
-                Text("Чистое жидкое стекло")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.58))
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .bottom, spacing: 14) {
+                    AvatarView(user: previewUser, size: 104)
+                        .padding(6)
+                        .background(.ultraThinMaterial, in: Circle())
+                        .overlay(Circle().stroke(.white.opacity(0.2), lineWidth: 0.8))
+                        .shadow(color: .black.opacity(0.32), radius: 18, y: 8)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(cleanDisplayName.isEmpty ? "Укажите имя" : cleanDisplayName)
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.74)
+                        Text("@\(cleanUsername.isEmpty ? "username" : cleanUsername)")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.64))
+                    }
+                    Spacer()
+                }
+                HStack(spacing: 8) {
+                    PhotosPicker(selection: $avatarPickerItem, matching: .images) {
+                        glassPill("Фото", symbol: "camera.fill")
+                    }
+                    .buttonStyle(TideGlassIconButtonStyle())
+                    PhotosPicker(selection: $coverPickerItem, matching: .images) {
+                        glassPill("Обложка", symbol: "photo.fill")
+                    }
+                    .buttonStyle(TideGlassIconButtonStyle())
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.38)) {
+                            avatarImageURL = nil
+                            coverImageURL = nil
+                            avatarSymbol = "person.crop.circle.fill"
+                        }
+                    } label: {
+                        glassPill("Удалить", symbol: "trash", tint: TidePalette.danger)
+                    }
+                    .buttonStyle(TideGlassIconButtonStyle())
+                }
             }
             .padding(18)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .padding(.horizontal, 16)
+        .background(AuthGlassBackground(cornerRadius: 34, interactive: false))
+        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
     }
 
-    private var editedDisplayName: String {
-        let value = [name, surname]
+    @ViewBuilder
+    private var coverPreview: some View {
+        if let coverImageURL, let image = UIImage(contentsOfFile: coverImageURL.path) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .overlay(.black.opacity(0.28))
+        } else {
+            ZStack {
+                LinearGradient(
+                    colors: [.white.opacity(0.16), .white.opacity(0.04), .black.opacity(0.7)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                RadialGradient(
+                    colors: [.white.opacity(0.2), .clear],
+                    center: .topTrailing,
+                    startRadius: 16,
+                    endRadius: 240
+                )
+                TideBrandLogoView(size: 86, style: .circle)
+                    .opacity(0.26)
+                    .blur(radius: 0.4)
+                    .offset(x: 106, y: -52)
+            }
+        }
+    }
+
+    private var saveBar: some View {
+        HStack(spacing: 12) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.36)) { dismiss() }
+            } label: {
+                Text("Отмена")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(TideGlassButtonStyle(tint: .white.opacity(0.34), cornerRadius: 22, minHeight: 48))
+
+            Button(action: saveProfile) {
+                Text("Готово")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(TideGlassButtonStyle(tint: canSave ? Color.white : Color.gray, cornerRadius: 22, minHeight: 48))
+            .disabled(!canSave)
+            .opacity(canSave ? 1 : 0.48)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 10)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(.white.opacity(0.12))
+                .frame(height: 0.6)
+        }
+    }
+
+    private var editProfileBackdrop: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            LinearGradient(
+                colors: [.white.opacity(0.08), .clear, .white.opacity(0.04)],
+                startPoint: .topTrailing,
+                endPoint: .bottomLeading
+            )
+            .blur(radius: 12)
+            .ignoresSafeArea()
+        }
+    }
+
+    private func editorSection<Content: View>(title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.92))
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.46))
+                }
+            }
+            content()
+        }
+        .padding(16)
+        .background(AuthGlassBackground(cornerRadius: 24, interactive: true))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(.white.opacity(0.1), lineWidth: 0.7)
+        }
+    }
+
+    private func profileTextField(_ title: String, text: Binding<String>, placeholder: String, icon: String, focus: EditProfileField) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            fieldLabel(title, icon: icon)
+            TextField(placeholder, text: text)
+                .focused($focusedField, equals: focus)
+                .font(.system(size: 16, weight: .regular, design: .rounded))
+                .foregroundStyle(.white)
+                .tint(.white)
+        }
+        .textFieldStyle(.plain)
+    }
+
+    private func fieldLabel(_ title: String, icon: String) -> some View {
+        Label(title, systemImage: icon)
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .foregroundStyle(.white.opacity(0.48))
+    }
+
+    private var profileDivider: some View {
+        Rectangle()
+            .fill(.white.opacity(0.08))
+            .frame(height: 0.7)
+    }
+
+    private func glassPill(_ title: String, symbol: String, tint: Color = .white) -> some View {
+        Label(title, systemImage: symbol)
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 12)
+            .frame(height: 34)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(.white.opacity(0.13), lineWidth: 0.7))
+    }
+
+    private func validationBanner(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "xmark.circle.fill")
+            Text(message)
+            Spacer()
+        }
+        .font(.system(size: 14, weight: .bold, design: .rounded))
+        .foregroundStyle(TidePalette.danger)
+        .padding(.horizontal, 14)
+        .frame(height: 44)
+        .background(AuthGlassBackground(cornerRadius: 18, interactive: false))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(TidePalette.danger.opacity(0.28), lineWidth: 0.7)
+        }
+    }
+
+    private var cleanDisplayName: String {
+        [name, surname]
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-        return value.isEmpty ? (dependencies.session.currentUser?.name ?? "") : value
     }
 
-    private var avatarBlock: some View {
-        VStack(spacing: 12) {
-            AvatarView(user: previewUser, size: 112)
-                .padding(8)
-                .background(AuthGlassBackground(cornerRadius: 64, interactive: false))
-                .overlay(Circle().stroke(.white.opacity(0.18), lineWidth: 0.8))
-                .shadow(color: .white.opacity(0.12), radius: 24, y: 10)
-
-            Button {
-                avatarSymbol = avatarSymbol == "person.crop.circle.fill" ? "person.crop.circle.badge.checkmark" : "person.crop.circle.fill"
-            } label: {
-                Text("Изменить фото")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(TidePalette.success)
-                    .padding(.horizontal, 18)
-                    .frame(height: 40)
-                    .background(AuthGlassBackground(cornerRadius: 20, interactive: true))
-            }
-            .buttonStyle(.plain)
-        }
+    private var cleanUsername: String {
+        sanitizeUsername(username)
     }
 
-    private func profileField<Content: View>(title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-            content()
-                .font(.system(size: 16, weight: .regular))
-                .tint(.white)
-                .foregroundStyle(.white)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 13)
-        .background(AuthGlassBackground(cornerRadius: 18, interactive: true))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(.white.opacity(0.1), lineWidth: 0.5)
+    private var currentSnapshot: EditProfileSnapshot {
+        EditProfileSnapshot(
+            name: cleanDisplayName,
+            username: cleanUsername,
+            biography: biography.trimmingCharacters(in: .whitespacesAndNewlines),
+            location: normalizedOptional(location),
+            website: normalizedOptional(website),
+            birthday: hasBirthday ? birthday : nil,
+            avatarSymbol: avatarSymbol,
+            avatarImageURL: avatarImageURL,
+            coverImageURL: coverImageURL
         )
+    }
+
+    private var canSave: Bool {
+        !cleanDisplayName.isEmpty && (originalSnapshot.map { currentSnapshot != $0 } ?? false)
+    }
+
+    private var activeValidationMessage: String? {
+        if originalSnapshot != nil, cleanDisplayName.isEmpty {
+            return "Укажите имя"
+        }
+        return validationMessage
     }
 
     private var previewUser: User {
-        User(
-            id: dependencies.session.currentUser?.id ?? UUID(),
-            name: editedDisplayName,
-            username: username.isEmpty ? (dependencies.session.currentUser?.username ?? "") : username,
+        let current = dependencies.session.currentUser
+        return User(
+            id: current?.id ?? UUID(),
+            name: cleanDisplayName.isEmpty ? "Укажите имя" : cleanDisplayName,
+            username: cleanUsername.isEmpty ? (current?.username ?? "username") : cleanUsername,
             biography: biography,
             avatarSymbol: avatarSymbol,
             avatarImageURL: avatarImageURL,
-            isVerified: dependencies.session.currentUser?.isVerified ?? false,
-            isAdministrator: dependencies.session.currentUser?.isAdministrator ?? false,
-            followers: dependencies.session.currentUser?.followers ?? 0,
-            following: dependencies.session.currentUser?.following ?? 0,
-            joinedAt: dependencies.session.currentUser?.joinedAt ?? .now,
-            coverSymbol: dependencies.session.currentUser?.coverSymbol ?? "water",
+            isVerified: current?.isVerified ?? false,
+            isAdministrator: current?.isAdministrator ?? false,
+            followers: current?.followers ?? 0,
+            following: current?.following ?? 0,
+            joinedAt: current?.joinedAt ?? .now,
+            coverSymbol: current?.coverSymbol ?? "water",
             coverImageURL: coverImageURL,
-            location: location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : location.trimmingCharacters(in: .whitespacesAndNewlines),
-            website: website.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : website.trimmingCharacters(in: .whitespacesAndNewlines),
+            location: normalizedOptional(location),
+            website: normalizedOptional(website),
             birthday: hasBirthday ? birthday : nil,
-            status: dependencies.session.currentUser?.status ?? .active,
-            lastSeenAt: dependencies.session.currentUser?.lastSeenAt ?? .now,
-            isFollowing: dependencies.session.currentUser?.isFollowing ?? false,
-            isBlocked: dependencies.session.currentUser?.isBlocked ?? false
+            status: current?.status ?? .active,
+            lastSeenAt: current?.lastSeenAt ?? .now,
+            isFollowing: current?.isFollowing ?? false,
+            isBlocked: current?.isBlocked ?? false
         )
     }
+
+    private func loadCurrentUser() {
+        guard let user = dependencies.session.currentUser else { return }
+        let parts = user.name.split(separator: " ", maxSplits: 1).map(String.init)
+        name = parts.first ?? ""
+        surname = parts.dropFirst().first ?? ""
+        username = sanitizeUsername(user.username)
+        biography = user.biography
+        location = user.location ?? ""
+        website = user.website ?? ""
+        birthday = user.birthday ?? Date()
+        hasBirthday = user.birthday != nil
+        avatarSymbol = user.avatarSymbol
+        avatarImageURL = user.avatarImageURL
+        coverImageURL = user.coverImageURL
+        originalSnapshot = currentSnapshot
+    }
+
+    private func saveProfile() {
+        guard !cleanDisplayName.isEmpty else {
+            withAnimation(.easeInOut(duration: 0.35)) {
+                validationMessage = "Укажите имя"
+                focusedField = .name
+            }
+            return
+        }
+        validationMessage = nil
+        dependencies.session.updateProfile(
+            name: cleanDisplayName,
+            username: cleanUsername,
+            biography: biography,
+            location: location,
+            website: website,
+            birthday: hasBirthday ? birthday : nil,
+            avatarSymbol: avatarSymbol,
+            avatarImageURL: avatarImageURL,
+            coverImageURL: coverImageURL
+        )
+        withAnimation(.easeInOut(duration: 0.42)) {
+            dismiss()
+        }
+    }
+
+    private func importProfileImage(_ item: PhotosPickerItem?, target: ProfileImageTarget) async {
+        guard let item else { return }
+        guard let imported = try? await MediaLibrary.shared.importItems([item]),
+              let media = imported.first,
+              media.kind == .photo else { return }
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.45)) {
+                switch target {
+                case .avatar:
+                    avatarImageURL = media.url
+                case .cover:
+                    coverImageURL = media.url
+                }
+            }
+        }
+    }
+
+    private func sanitizeUsername(_ value: String) -> String {
+        let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789_.")
+        return value
+            .lowercased()
+            .filter { allowed.contains($0) }
+            .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+    }
+
+    private func normalizedOptional(_ value: String) -> String? {
+        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return clean.isEmpty ? nil : clean
+    }
+
+    private enum EditProfileField: Hashable {
+        case name
+        case surname
+        case username
+        case bio
+        case location
+        case website
+    }
+
+    private enum ProfileImageTarget {
+        case avatar
+        case cover
+    }
+}
+
+private struct EditProfileSnapshot: Equatable {
+    let name: String
+    let username: String
+    let biography: String
+    let location: String?
+    let website: String?
+    let birthday: Date?
+    let avatarSymbol: String
+    let avatarImageURL: URL?
+    let coverImageURL: URL?
 }
 
 struct SettingsView: View {

@@ -16,7 +16,7 @@ struct ChatListView: View {
                 ForEach(ChatKind.allCases) { Text($0.title).tag(Optional($0)) }
             }
             .pickerStyle(.segmented)
-            .tint(TidePalette.success)
+            .tint(.primary)
             .listRowSeparator(.hidden)
 
             ForEach(filteredChats) { chat in
@@ -31,7 +31,7 @@ struct ChatListView: View {
                     Button { messenger.togglePin(chat.id) } label: {
                         Label(chat.isPinned ? "Открепить" : "Закрепить", systemImage: "pin")
                     }
-                    .tint(TidePalette.success)
+                    .tint(.gray)
 
                     Button { messenger.toggleMute(chat.id) } label: {
                         Label(chat.isMuted ? "Включить звук" : "Выключить звук", systemImage: "bell.slash")
@@ -53,7 +53,11 @@ struct ChatListView: View {
         .toolbar {
             Button { dependencies.router.sheet = .newMessage } label: {
                 Image(systemName: "square.and.pencil")
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 34, height: 34)
+                    .background(AuthGlassBackground(cornerRadius: 17, interactive: true))
             }
+            .buttonStyle(TideGlassIconButtonStyle())
         }
     }
 
@@ -88,7 +92,7 @@ struct ChatRow: View {
                     if chat.isPinned {
                         Image(systemName: "pin.fill")
                             .font(.caption)
-                            .foregroundStyle(TidePalette.success)
+                            .foregroundStyle(.secondary)
                     }
                     Spacer()
                     Text(chat.lastMessage?.sentAt.formatted(date: .omitted, time: .shortened) ?? "")
@@ -109,7 +113,7 @@ struct ChatRow: View {
                         Text("\(chat.unreadCount)")
                             .font(.caption2.bold())
                             .padding(6)
-                            .background(TidePalette.success, in: Circle())
+                            .background(Color.primary.opacity(0.24), in: Circle())
                             .foregroundStyle(.white)
                     }
                 }
@@ -172,7 +176,7 @@ struct ConversationView: View {
                     Button { dependencies.router.push(.call(chatID, false)) } label: {
                         Image(systemName: "phone")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(TidePalette.success)
+                            .foregroundStyle(.primary)
                             .frame(width: 34, height: 34)
                             .background(AuthGlassBackground(cornerRadius: 17, interactive: true))
                     }
@@ -180,7 +184,7 @@ struct ConversationView: View {
                     Button { dependencies.router.push(.call(chatID, true)) } label: {
                         Image(systemName: "video")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(TidePalette.success)
+                            .foregroundStyle(.primary)
                             .frame(width: 34, height: 34)
                             .background(AuthGlassBackground(cornerRadius: 17, interactive: true))
                     }
@@ -209,7 +213,7 @@ struct ConversationView: View {
         LinearGradient(
             colors: [
                 Color(uiColor: .systemBackground),
-                TidePalette.success.opacity(0.06),
+                Color.primary.opacity(0.04),
                 Color(uiColor: .systemBackground)
             ],
             startPoint: .topLeading,
@@ -252,8 +256,8 @@ struct ConversationView: View {
                     Image(systemName: "plus")
                         .font(.system(size: 17, weight: .semibold))
                         .frame(width: 34, height: 34)
-                        .foregroundStyle(TidePalette.success)
-                        .tideGlass(interactive: true, cornerRadius: 17, tint: TidePalette.success.opacity(0.08))
+                        .foregroundStyle(.primary)
+                        .tideGlass(interactive: true, cornerRadius: 17, tint: Color.primary.opacity(0.05))
                 }
 
                 TextField("Сообщение", text: $draft, axis: .vertical)
@@ -270,8 +274,8 @@ struct ConversationView: View {
                     Image(systemName: draft.isEmpty && attachment == nil ? "mic.fill" : "arrow.up")
                         .font(.system(size: 17, weight: .bold))
                         .frame(width: 34, height: 34)
-                        .foregroundStyle(.white)
-                        .background(canSend ? TidePalette.success : .secondary.opacity(0.45), in: Circle())
+                        .foregroundStyle(canSend ? Color(uiColor: .systemBackground) : .secondary)
+                        .background(canSend ? Color.primary : .secondary.opacity(0.16), in: Circle())
                 }
                 .disabled(!canSend)
             }
@@ -323,7 +327,7 @@ private struct ConversationToolbarTitle: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 32, height: 32)
-                .background(TidePalette.success.gradient, in: Circle())
+                .background(Color.primary.opacity(0.22), in: Circle())
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(chat.title)
@@ -387,11 +391,17 @@ struct MessageBubble: View {
                         .offset(y: 12)
                 }
             }
-            .padding(.horizontal, 13)
-            .padding(.vertical, 9)
+            .padding(.horizontal, message.attachmentKind == .none ? 13 : 3)
+            .padding(.vertical, message.attachmentKind == .none ? 9 : 3)
             .background(bubbleBackground)
             .foregroundStyle(isOutgoing ? .white : TidePalette.ink)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: message.attachmentKind == .none ? 18 : 19, style: .continuous))
+            .overlay {
+                if message.attachmentKind != .none {
+                    RoundedRectangle(cornerRadius: 19, style: .continuous)
+                        .stroke(.white.opacity(0.14), lineWidth: 0.7)
+                }
+            }
             .contextMenu {
                 Button("Ответить", systemImage: "arrowshape.turn.up.left", action: reply)
                 Menu("Реакция") {
@@ -416,7 +426,10 @@ struct MessageBubble: View {
     }
 
     private var bubbleBackground: some ShapeStyle {
-        isOutgoing ? AnyShapeStyle(TidePalette.success.gradient) : AnyShapeStyle(.regularMaterial)
+        if message.attachmentKind != .none {
+            return AnyShapeStyle(.clear)
+        }
+        return isOutgoing ? AnyShapeStyle(Color.primary.opacity(0.24)) : AnyShapeStyle(.regularMaterial)
     }
 
     @ViewBuilder
@@ -478,6 +491,23 @@ struct CallView: View {
     @State private var speakerEnabled = true
     @State private var cameraEnabled = true
     @State private var startedAt = Date.now
+    @State private var state: CallState = .ringing
+
+    private enum CallState: String {
+        case ringing
+        case connecting
+        case active
+        case ended
+
+        var title: String {
+            switch self {
+            case .ringing: "Звонок"
+            case .connecting: "Соединение"
+            case .active: "Идёт звонок"
+            case .ended: "Завершён"
+            }
+        }
+    }
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -498,7 +528,7 @@ struct CallView: View {
                             .font(.largeTitle.bold())
                             .foregroundStyle(.white)
                     }
-                    Text(duration(from: startedAt, to: context.date))
+                    Text(state == .active ? duration(from: startedAt, to: context.date) : state.title)
                         .font(.title3.monospacedDigit())
                         .foregroundStyle(.white.opacity(0.7))
                     Spacer()
@@ -516,16 +546,36 @@ struct CallView: View {
         }
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .tabBar)
+        .onAppear {
+            state = .connecting
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(900))
+                withAnimation(.easeInOut(duration: 0.45)) {
+                    state = .active
+                    startedAt = .now
+                }
+            }
+        }
     }
 
     private func callButton(_ symbol: String, active: Bool = false, color: Color = .white.opacity(0.16), action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Button {
+            withAnimation(.easeInOut(duration: 0.34)) {
+                action()
+            }
+        } label: {
             Image(systemName: symbol)
                 .font(.title2)
                 .foregroundStyle(.white)
                 .frame(width: 58, height: 58)
-                .background(active ? TidePalette.success.opacity(0.7) : color, in: Circle())
+                .background(isEndedButton(symbol) ? color : .white.opacity(active ? 0.24 : 0.12), in: Circle())
+                .overlay(Circle().stroke(.white.opacity(active ? 0.34 : 0.16), lineWidth: 0.8))
         }
+        .buttonStyle(TideGlassIconButtonStyle())
+    }
+
+    private func isEndedButton(_ symbol: String) -> Bool {
+        symbol == "phone.down.fill"
     }
 
     private func duration(from: Date, to: Date) -> String {

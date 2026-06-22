@@ -26,16 +26,167 @@ enum APIError: LocalizedError, Sendable {
 
     var errorDescription: String? {
         switch self {
-        case .notConfigured: "The Tide server is not configured"
-        case .invalidResponse: "The server returned an invalid response"
-        case .unauthorized: "The session has expired"
-        case .server(let status, let message): "Server error \(status): \(message)"
-        case .invalidPayload: "Unable to encode the request"
+        case .notConfigured: "Сервер Tide не настроен."
+        case .invalidResponse: "Сервер вернул некорректный ответ."
+        case .unauthorized: "Сессия истекла. Войдите ещё раз."
+        case .server(let status, let message): "Ошибка сервера \(status): \(message)"
+        case .invalidPayload: "Не удалось подготовить запрос."
         }
     }
 }
 
 struct EmptyResponse: Codable, Sendable {}
+
+struct AuthSessionDTO: Codable, Sendable {
+    let token: String
+    let userID: UUID
+    let username: String
+    let displayName: String
+    let requiresProfileSetup: Bool
+}
+
+struct ChatDTO: Codable, Identifiable, Sendable {
+    let id: UUID
+    let title: String
+    let kind: String
+    let participantIDs: [UUID]
+    let updatedAt: Date
+}
+
+struct MessageDTO: Codable, Identifiable, Sendable {
+    let id: UUID
+    let chatID: UUID
+    let senderID: UUID
+    let body: String
+    let attachmentURL: URL?
+    let attachmentKind: String
+    let replyToMessageID: UUID?
+    let sentAt: Date
+    let state: String
+}
+
+struct CallSessionDTO: Codable, Identifiable, Sendable {
+    let id: UUID
+    let chatID: UUID
+    let initiatorID: UUID
+    let isVideo: Bool
+    let state: String
+    let startedAt: Date?
+    let endedAt: Date?
+}
+
+struct MediaUploadDTO: Codable, Sendable {
+    let uploadURL: URL
+    let publicURL: URL
+    let kind: String
+    let expiresAt: Date
+}
+
+struct LoginRequestDTO: Codable, Sendable {
+    let identifier: String
+    let password: String
+}
+
+struct RegisterRequestDTO: Codable, Sendable {
+    let email: String?
+    let username: String
+    let password: String
+    let displayName: String
+}
+
+struct CreateChatRequestDTO: Codable, Sendable {
+    let participantIDs: [UUID]
+    let title: String?
+    let kind: String
+}
+
+struct SendMessageRequestDTO: Codable, Sendable {
+    let chatID: UUID
+    let body: String
+    let attachmentURL: URL?
+    let attachmentKind: String
+    let replyToMessageID: UUID?
+}
+
+struct UpdateMessageRequestDTO: Codable, Sendable {
+    let body: String
+}
+
+struct MediaUploadRequestDTO: Codable, Sendable {
+    let kind: String
+    let fileName: String
+    let contentType: String
+}
+
+struct CreateCallRequestDTO: Codable, Sendable {
+    let chatID: UUID
+    let isVideo: Bool
+}
+
+struct DeviceTokenRequestDTO: Codable, Sendable {
+    let token: String
+    let environment: String
+}
+
+struct TideRemoteMessengerAPI: Sendable {
+    let client: APIClient
+
+    func login(identifier: String, password: String) async throws -> AuthSessionDTO {
+        try await client.post("/auth/login", body: LoginRequestDTO(identifier: identifier, password: password), as: AuthSessionDTO.self)
+    }
+
+    func register(email: String?, username: String, password: String, displayName: String) async throws -> AuthSessionDTO {
+        try await client.post("/auth/register", body: RegisterRequestDTO(email: email, username: username, password: password, displayName: displayName), as: AuthSessionDTO.self)
+    }
+
+    func logout() async throws {
+        try await client.post("/auth/logout", body: EmptyResponse(), as: EmptyResponse.self)
+    }
+
+    func chats() async throws -> [ChatDTO] {
+        try await client.get("/chats", as: [ChatDTO].self)
+    }
+
+    func createChat(participantIDs: [UUID], title: String?, kind: String) async throws -> ChatDTO {
+        try await client.post("/chats", body: CreateChatRequestDTO(participantIDs: participantIDs, title: title, kind: kind), as: ChatDTO.self)
+    }
+
+    func messages(chatID: UUID) async throws -> [MessageDTO] {
+        try await client.get("/chats/\(chatID.uuidString)/messages", as: [MessageDTO].self)
+    }
+
+    func sendMessage(_ request: SendMessageRequestDTO) async throws -> MessageDTO {
+        try await client.post("/messages", body: request, as: MessageDTO.self)
+    }
+
+    func updateMessage(id: UUID, body: String) async throws -> MessageDTO {
+        try await client.patch("/messages/\(id.uuidString)", body: UpdateMessageRequestDTO(body: body), as: MessageDTO.self)
+    }
+
+    func deleteMessage(id: UUID) async throws {
+        try await client.delete("/messages/\(id.uuidString)")
+    }
+
+    func requestMediaUpload(kind: String, fileName: String, contentType: String) async throws -> MediaUploadDTO {
+        try await client.post("/media/upload", body: MediaUploadRequestDTO(kind: kind, fileName: fileName, contentType: contentType), as: MediaUploadDTO.self)
+    }
+
+    func createCall(chatID: UUID, isVideo: Bool) async throws -> CallSessionDTO {
+        try await client.post("/calls", body: CreateCallRequestDTO(chatID: chatID, isVideo: isVideo), as: CallSessionDTO.self)
+    }
+
+    func joinCall(id: UUID) async throws -> CallSessionDTO {
+        try await client.post("/calls/\(id.uuidString)/join", body: EmptyResponse(), as: CallSessionDTO.self)
+    }
+
+    func endCall(id: UUID) async throws -> CallSessionDTO {
+        try await client.post("/calls/\(id.uuidString)/end", body: EmptyResponse(), as: CallSessionDTO.self)
+    }
+
+    func registerDevice(token: String, environment: String) async throws {
+        try await client.post("/devices/apns", body: DeviceTokenRequestDTO(token: token, environment: environment), as: EmptyResponse.self)
+    }
+}
 
 actor APIClient {
     private let configuration: ServerConfiguration
@@ -120,6 +271,8 @@ struct ChatSocketEnvelope: Codable, Sendable {
         case typing
         case presence
         case readReceipt
+        case callInvite
+        case callState
         case ping
     }
 

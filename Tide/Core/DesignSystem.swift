@@ -8,8 +8,12 @@ enum TidePalette {
     static let subtle = Color.primary.opacity(0.07)
     static let separator = Color.primary.opacity(0.13)
     static let inverse = Color(uiColor: .systemBackground)
+    static let graphite = Color(uiColor: .tertiarySystemFill)
+    static let graphiteStrong = Color.primary.opacity(0.18)
+    static let glassStroke = Color.white.opacity(0.14)
     static let destructive = Color.red
-    static let success = Color.green
+    static let success = Color.primary.opacity(0.72)
+    static let positive = Color.green
     static let danger = Color.red
 }
 
@@ -188,6 +192,53 @@ struct TideSecondaryButtonStyle: ButtonStyle {
                     .stroke(TidePalette.separator, lineWidth: 0.5)
             }
             .opacity(configuration.isPressed ? 0.65 : 1)
+    }
+}
+
+struct TideGlassButtonStyle: ButtonStyle {
+    var tint: Color? = nil
+    var cornerRadius: CGFloat = 18
+    var minHeight: CGFloat = 44
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(TideTypography.headline)
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 14)
+            .frame(minHeight: minHeight)
+            .tideGlass(interactive: true, cornerRadius: cornerRadius, tint: (tint ?? Color.primary).opacity(0.08))
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .opacity(configuration.isPressed ? 0.78 : 1)
+            .animation(.easeInOut(duration: 0.24), value: configuration.isPressed)
+    }
+
+}
+
+struct TideGlassIconButton: View {
+    let symbol: String
+    var tint: Color = .primary
+    var size: CGFloat = 38
+    var isDestructive = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: size * 0.42, weight: .semibold))
+                .foregroundStyle(isDestructive ? TidePalette.danger : tint)
+                .frame(width: size, height: size)
+                .tideGlass(interactive: true, cornerRadius: size / 2, tint: tint.opacity(0.08))
+        }
+        .buttonStyle(TideGlassIconButtonStyle())
+    }
+}
+
+struct TideGlassIconButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .opacity(configuration.isPressed ? 0.76 : 1)
+            .animation(.easeInOut(duration: 0.22), value: configuration.isPressed)
     }
 }
 
