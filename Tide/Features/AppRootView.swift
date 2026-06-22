@@ -95,6 +95,7 @@ struct MainTabView: View {
         case .dataManagement: DataManagementView()
         case .storageFiles: StorageFilesView()
         case .activeSessions: ActiveSessionsView()
+        case .blockedAccounts: BlockedAccountsView()
         case .stories(let id): StoryViewer(storyID: id)
         case .live: LiveHubView()
         case .browser(let url): BrowserView(url: url)
