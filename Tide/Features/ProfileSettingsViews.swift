@@ -531,7 +531,7 @@ struct SettingsView: View {
     }
 
     private var backgroundColor: Color {
-        Color(red: 64.0 / 255.0, green: 64.0 / 255.0, blue: 64.0 / 255.0)
+        Color(red: 0.08, green: 0.08, blue: 0.09)
     }
 
     private var notificationStatusTitle: String {
@@ -645,7 +645,7 @@ private struct SettingsProfileCard: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(StandardPanelBackground(cornerRadius: 24))
+            .background(SignalSettingsCardBackground())
         }
         .buttonStyle(.plain)
     }
@@ -677,7 +677,7 @@ private struct SettingsToggleRow: View {
         .frame(height: 48)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(.white.opacity(0.08))
+                .fill(.white.opacity(0.07))
                 .frame(height: 1)
                 .padding(.leading, 52)
                 .padding(.trailing, 16)
@@ -1261,7 +1261,7 @@ private struct SettingsGlassSection<Content: View>: View {
             VStack(spacing: 0) {
                 content
             }
-            .background(StandardPanelBackground(cornerRadius: 18))
+            .background(SignalSettingsSectionBackground())
             .padding(.horizontal, 16)
         }
     }
@@ -1320,6 +1320,28 @@ private struct SettingsGlassRowContent: View {
                 .padding(.leading, 52)
                 .padding(.trailing, 16)
         }
+    }
+}
+
+private struct SignalSettingsSectionBackground: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(Color(red: 0.14, green: 0.14, blue: 0.15))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.06), lineWidth: 0.7)
+            }
+    }
+}
+
+private struct SignalSettingsCardBackground: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 24, style: .continuous)
+            .fill(Color(red: 0.14, green: 0.14, blue: 0.15))
+            .overlay {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(Color.white.opacity(0.06), lineWidth: 0.7)
+            }
     }
 }
 
