@@ -200,14 +200,26 @@ struct EmailLoginView: View {
 
     private func socialCircle(_ brand: SocialBrand) -> some View {
         Button(action: {}) {
+            socialIcon(for: brand)
+                .frame(width: 54, height: 54)
+                .background(AuthGlassBackground(cornerRadius: 27, interactive: true))
+                .clipShape(Circle())
+        }
+        .buttonStyle(AuthSmoothButtonStyle())
+    }
+
+    @ViewBuilder
+    private func socialIcon(for brand: SocialBrand) -> some View {
+        if brand == .apple {
+            Image(systemName: "apple.logo")
+                .font(.system(size: 25, weight: .semibold))
+                .foregroundStyle(.white)
+        } else {
             Image(imageName(for: brand))
+                .renderingMode(.original)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 24, height: 24)
-                .frame(width: 54, height: 54)
-                .background(Color(white: 0.1))
-                .clipShape(Circle())
-                .overlay(Circle().stroke(Color(white: 0.2), lineWidth: 0.5))
         }
     }
 

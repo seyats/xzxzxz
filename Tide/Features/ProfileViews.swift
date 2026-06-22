@@ -203,6 +203,7 @@ struct EditProfileView: View {
     @Environment(AppDependencies.self) private var dependencies
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
+    @State private var surname = ""
     @State private var username = ""
     @State private var biography = ""
     @State private var location = ""
@@ -216,16 +217,18 @@ struct EditProfileView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    heroCard
-                        .padding(.top, 10)
-
+                VStack(spacing: 22) {
                     avatarBlock
+                        .padding(.top, 26)
 
-                    VStack(spacing: 12) {
+                    VStack(spacing: 10) {
                         profileField(title: "Имя") {
                             TextField("Имя", text: $name)
-                                .textContentType(.name)
+                                .textContentType(.givenName)
+                        }
+                        profileField(title: "Фамилия") {
+                            TextField("Фамилия", text: $surname)
+                                .textContentType(.familyName)
                         }
                         profileField(title: "Имя пользователя") {
                             TextField("@никнейм", text: $username)
@@ -233,9 +236,13 @@ struct EditProfileView: View {
                                 .autocorrectionDisabled()
                                 .textContentType(.username)
                         }
+                    }
+                    .padding(.horizontal, 16)
+
+                    VStack(spacing: 10) {
                         profileField(title: "О себе") {
                             TextEditor(text: $biography)
-                                .frame(minHeight: 116)
+                                .frame(minHeight: 104)
                                 .scrollContentBackground(.hidden)
                         }
                         profileField(title: "Локация") {
@@ -249,16 +256,18 @@ struct EditProfileView: View {
                                 .keyboardType(.URL)
                                 .textContentType(.URL)
                         }
-                        profileField(title: "Дата рождения") {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Toggle("Показывать дату рождения", isOn: $hasBirthday)
-                                    .toggleStyle(.switch)
-                                    .tint(TidePalette.success)
-                                if hasBirthday {
-                                    DatePicker("Дата", selection: $birthday, displayedComponents: .date)
-                                        .labelsHidden()
-                                        .datePickerStyle(.compact)
-                                }
+                    }
+                    .padding(.horizontal, 16)
+
+                    profileField(title: "Дата рождения") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Toggle("Показывать дату рождения", isOn: $hasBirthday)
+                                .toggleStyle(.switch)
+                                .tint(TidePalette.success)
+                            if hasBirthday {
+                                DatePicker("Дата", selection: $birthday, displayedComponents: .date)
+                                    .labelsHidden()
+                                    .datePickerStyle(.compact)
                             }
                         }
                     }
@@ -294,7 +303,9 @@ struct EditProfileView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        dismiss()
+                        withAnimation(.easeInOut(duration: 0.36)) {
+                            dismiss()
+                        }
                     } label: {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 14, weight: .semibold))
@@ -302,11 +313,12 @@ struct EditProfileView: View {
                             .frame(width: 38, height: 38)
                             .background(AuthGlassBackground(cornerRadius: 18, interactive: true))
                     }
+                    .buttonStyle(AuthSmoothButtonStyle())
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Готово") {
                         dependencies.session.updateProfile(
-                            name: name,
+                            name: editedDisplayName,
                             username: username,
                             biography: biography,
                             location: location,
@@ -316,21 +328,27 @@ struct EditProfileView: View {
                             avatarImageURL: avatarImageURL,
                             coverImageURL: coverImageURL
                         )
-                        dismiss()
+                        withAnimation(.easeInOut(duration: 0.36)) {
+                            dismiss()
+                        }
                     }
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 14)
                     .frame(height: 36)
                     .background(AuthGlassBackground(cornerRadius: 18, interactive: true))
+                    .buttonStyle(AuthSmoothButtonStyle())
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .navigationTitle("Изменить профиль")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 let user = dependencies.session.currentUser
-                name = user?.name ?? ""
+                let parts = (user?.name ?? "").split(separator: " ", maxSplits: 1).map(String.init)
+                name = parts.first ?? ""
+                surname = parts.dropFirst().first ?? ""
                 username = user?.username ?? ""
                 biography = user?.biography ?? ""
                 location = user?.location ?? ""
@@ -400,15 +418,33 @@ struct EditProfileView: View {
         .padding(.horizontal, 16)
     }
 
+    private var editedDisplayName: String {
+        let value = [name, surname]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        return value.isEmpty ? (dependencies.session.currentUser?.name ?? "") : value
+    }
+
     private var avatarBlock: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             AvatarView(user: previewUser, size: 112)
-                .padding(6)
-                .background(.white.opacity(0.06), in: Circle())
-                .overlay(Circle().stroke(.white.opacity(0.16), lineWidth: 0.7))
-            Text("Аватар и обложка обновляются вместе")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
+                .padding(8)
+                .background(AuthGlassBackground(cornerRadius: 64, interactive: false))
+                .overlay(Circle().stroke(.white.opacity(0.18), lineWidth: 0.8))
+                .shadow(color: .white.opacity(0.12), radius: 24, y: 10)
+
+            Button {
+                avatarSymbol = avatarSymbol == "person.crop.circle.fill" ? "person.crop.circle.badge.checkmark" : "person.crop.circle.fill"
+            } label: {
+                Text("Изменить фото")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(TidePalette.success)
+                    .padding(.horizontal, 18)
+                    .frame(height: 40)
+                    .background(AuthGlassBackground(cornerRadius: 20, interactive: true))
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -423,10 +459,10 @@ struct EditProfileView: View {
                 .foregroundStyle(.white)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(AuthGlassBackground(cornerRadius: 22, interactive: true))
+        .padding(.vertical, 13)
+        .background(AuthGlassBackground(cornerRadius: 18, interactive: true))
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(.white.opacity(0.1), lineWidth: 0.5)
         )
     }
@@ -434,7 +470,7 @@ struct EditProfileView: View {
     private var previewUser: User {
         User(
             id: dependencies.session.currentUser?.id ?? UUID(),
-            name: name.isEmpty ? (dependencies.session.currentUser?.name ?? "") : name,
+            name: editedDisplayName,
             username: username.isEmpty ? (dependencies.session.currentUser?.username ?? "") : username,
             biography: biography,
             avatarSymbol: avatarSymbol,

@@ -6,13 +6,15 @@ struct PremiumAuthenticationView: View {
     @FocusState private var focusedField: Field?
     @State private var stage: AuthStage = .landing
     @State private var identifier = ""
+    @State private var usernamePassword = ""
+    @State private var usernamePasswordVisible = false
     @State private var email = ""
     @State private var isLoading = false
     @State private var alertMessage: String?
     @State private var showProviderSheet = false
 
     private enum AuthStage { case landing, username, email }
-    private enum Field { case identifier, email }
+    private enum Field { case identifier, usernamePassword, email }
 
     var body: some View {
         ZStack {
@@ -26,7 +28,7 @@ struct PremiumAuthenticationView: View {
                 }
             }
             .padding(.horizontal, 28)
-            .animation(.easeInOut(duration: 0.25), value: stage)
+            .animation(.easeInOut(duration: 0.58), value: stage)
         }
         .preferredColorScheme(.dark)
         .ignoresSafeArea()
@@ -52,7 +54,7 @@ struct PremiumAuthenticationView: View {
 
             Spacer(minLength: 190)
 
-            AuthChromeLogo(size: 78)
+            AuthChromeLogo(size: 96)
                 .padding(.bottom, 26)
 
             Text("Создать аккаунт")
@@ -66,7 +68,9 @@ struct PremiumAuthenticationView: View {
 
             HStack(spacing: 28) {
                 AuthSocialGlassButton(kind: .google, imageName: "GoogleLogo", shape: .circle) {
-                    showProviderSheet = true
+                    withAnimation(.easeInOut(duration: 0.42)) {
+                        showProviderSheet = true
+                    }
                 }
                 AppleAuthGlassButton(shape: .circle) { result in
                     handleAppleSignIn(result)
@@ -137,6 +141,33 @@ struct PremiumAuthenticationView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .focused($focusedField, equals: .identifier)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Image(systemName: "lock")
+                        .font(.system(size: 30, weight: .black))
+                        .foregroundStyle(.white)
+                    Group {
+                        if usernamePasswordVisible {
+                            TextField("Пароль", text: $usernamePassword)
+                        } else {
+                            SecureField("Пароль", text: $usernamePassword)
+                        }
+                    }
+                    .font(.system(size: 30, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .tint(.white)
+                    .focused($focusedField, equals: .usernamePassword)
+
+                    Button {
+                        usernamePasswordVisible.toggle()
+                    } label: {
+                        Image(systemName: usernamePasswordVisible ? "eye.slash" : "eye")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.56))
+                    }
+                    .buttonStyle(AuthSmoothButtonStyle())
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -233,7 +264,7 @@ struct PremiumAuthenticationView: View {
     private func authTopBar(trailing: String) -> some View {
         HStack(alignment: .top) {
             Button {
-                withAnimation(.easeInOut(duration: 0.25)) { stage = .landing }
+                withAnimation(.easeInOut(duration: 0.58)) { stage = .landing }
             } label: {
                 Image(systemName: "arrow.left")
                     .font(.system(size: 31, weight: .bold))
@@ -265,10 +296,12 @@ struct PremiumAuthenticationView: View {
                 .background(enabled ? .white : .white.opacity(0.14), in: Capsule())
         }
         .disabled(!enabled || isLoading)
+        .buttonStyle(AuthSmoothButtonStyle())
     }
 
     private var canContinueUsername: Bool {
         !identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && usernamePassword.trimmingCharacters(in: .whitespacesAndNewlines).count >= 8
     }
 
     private var canContinueEmail: Bool {
@@ -276,7 +309,7 @@ struct PremiumAuthenticationView: View {
     }
 
     private func showUsername() {
-        withAnimation(.easeInOut(duration: 0.25)) { stage = .username }
+        withAnimation(.easeInOut(duration: 0.58)) { stage = .username }
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(180))
             focusedField = .identifier
@@ -284,7 +317,7 @@ struct PremiumAuthenticationView: View {
     }
 
     private func showEmail() {
-        withAnimation(.easeInOut(duration: 0.25)) { stage = .email }
+        withAnimation(.easeInOut(duration: 0.58)) { stage = .email }
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(180))
             focusedField = .email
@@ -296,7 +329,7 @@ struct PremiumAuthenticationView: View {
         Task {
             isLoading = true
             defer { isLoading = false }
-            await dependencies.session.signInIdentifier(identifier, password: "Sy3uki90.")
+            await dependencies.session.signInIdentifier(identifier, password: usernamePassword)
         }
     }
 
@@ -439,7 +472,7 @@ struct AuthProfileSetupView: View {
             }
 
             primaryWideButton(title: "Продолжить", enabled: canContinueName) {
-                withAnimation(.easeInOut(duration: 0.25)) {
+                withAnimation(.easeInOut(duration: 0.58)) {
                     step = .birthday
                     focusedField = nil
                 }
@@ -534,7 +567,7 @@ struct AuthProfileSetupView: View {
             Spacer()
 
             primaryWideButton(title: "Продолжить", enabled: canContinueUsername) {
-                withAnimation(.easeInOut(duration: 0.25)) {
+                withAnimation(.easeInOut(duration: 0.58)) {
                     step = .password
                     focusedField = .password
                 }
@@ -588,7 +621,7 @@ struct AuthProfileSetupView: View {
     private var onboardingBackButton: some View {
         HStack {
             Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
+                withAnimation(.easeInOut(duration: 0.58)) {
                     switch step {
                     case .name: break
                     case .birthday: step = .name
@@ -617,6 +650,7 @@ struct AuthProfileSetupView: View {
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.38)
         .frame(maxWidth: .infinity)
+        .buttonStyle(AuthSmoothButtonStyle())
     }
 
     private func primaryWideButton(title: String, enabled: Bool, action: @escaping () -> Void) -> some View {
@@ -629,6 +663,7 @@ struct AuthProfileSetupView: View {
                 .background(enabled ? .white : .white.opacity(0.14), in: Capsule())
         }
         .disabled(!enabled)
+        .buttonStyle(AuthSmoothButtonStyle())
     }
 
     private var canContinueName: Bool {
@@ -673,7 +708,7 @@ struct AuthProfileSetupView: View {
     }
 
     private func advanceToUsername() {
-        withAnimation(.easeInOut(duration: 0.25)) {
+        withAnimation(.easeInOut(duration: 0.58)) {
             if username.isEmpty { username = generatedUsernames.first ?? "" }
             step = .username
             focusedField = .username
@@ -682,7 +717,7 @@ struct AuthProfileSetupView: View {
 
     private func completeSetup() {
         let trimmedName = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
-        dependencies.session.completeProfileSetup(name: trimmedName, username: username)
+        dependencies.session.completeProfileSetup(name: trimmedName, username: username, password: password)
         dependencies.router.selectedTab = .chats
     }
 }
@@ -769,11 +804,14 @@ struct AuthChromeLogo: View {
 
     var body: some View {
         Image("TideBubbleLogo")
+            .renderingMode(.original)
             .resizable()
             .scaledToFit()
+            .frame(width: size * 0.86, height: size * 0.86)
             .frame(width: size, height: size)
+            .background(AuthGlassBackground(cornerRadius: size / 2, interactive: false))
             .clipShape(Circle())
-            .shadow(color: .white.opacity(0.18), radius: 24, y: 4)
+            .shadow(color: .white.opacity(0.24), radius: 28, y: 8)
             .accessibilityLabel("Tide")
     }
 }
@@ -820,7 +858,7 @@ struct AuthInputField: View {
                     .foregroundStyle(.white.opacity(0.44))
                     .frame(width: 24, height: 24)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(AuthSmoothButtonStyle())
             .disabled(!isSecure)
         }
         .padding(.horizontal, 16)
@@ -846,13 +884,14 @@ struct AuthSocialGlassButton: View {
             ZStack {
                 AuthGlassBackground(cornerRadius: cornerRadius, interactive: true)
                 Image(imageName)
+                    .renderingMode(.original)
                     .resizable()
                     .scaledToFit()
                     .frame(width: size * 0.4, height: size * 0.4)
             }
             .frame(width: size, height: size)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AuthSmoothButtonStyle())
     }
 }
 
@@ -873,7 +912,7 @@ struct AppleAuthGlassButton: View {
                 content.contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AuthSmoothButtonStyle())
     }
 
     private var content: some View {
@@ -910,7 +949,7 @@ struct AuthCircleIconButton: View {
             }
             .frame(width: 58, height: 58)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AuthSmoothButtonStyle())
     }
 }
 
@@ -932,6 +971,7 @@ struct AuthProviderPill: View {
             HStack(spacing: 14) {
                 if let imageName {
                     Image(imageName)
+                        .renderingMode(.original)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 26, height: 26)
@@ -950,7 +990,7 @@ struct AuthProviderPill: View {
             .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
             .background(AuthGlassBackground(cornerRadius: 20, interactive: true))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AuthSmoothButtonStyle())
     }
 }
 
@@ -966,5 +1006,14 @@ struct AuthGlassBackground: View {
                     .stroke(.white.opacity(interactive ? 0.16 : 0.12), lineWidth: 1)
             }
             .shadow(color: .black.opacity(interactive ? 0.35 : 0.22), radius: 24, y: 10)
+    }
+}
+
+struct AuthSmoothButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.975 : 1)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .animation(.easeInOut(duration: 0.22), value: configuration.isPressed)
     }
 }

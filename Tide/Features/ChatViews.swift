@@ -141,6 +141,10 @@ struct ConversationView: View {
                                 replyTo = message
                             }
                             .id(message.id)
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .bottom)).combined(with: .scale(scale: 0.96)),
+                                removal: .opacity
+                            ))
                         }
                     }
                     .padding(.horizontal, 12)
@@ -151,21 +155,36 @@ struct ConversationView: View {
                 .safeAreaInset(edge: .bottom) { composer }
                 .onChange(of: chat.messages.count) { _, _ in
                     if let id = chat.messages.last?.id {
-                        withAnimation { proxy.scrollTo(id, anchor: .bottom) }
+                        withAnimation(.easeInOut(duration: 0.52)) {
+                            proxy.scrollTo(id, anchor: .bottom)
+                        }
                     }
                 }
+                .animation(.easeInOut(duration: 0.38), value: chat.messages.count)
             }
-            .navigationTitle(chat.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .tabBar)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    ConversationToolbarTitle(chat: chat)
+                }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button { dependencies.router.push(.call(chatID, false)) } label: {
                         Image(systemName: "phone")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(TidePalette.success)
+                            .frame(width: 34, height: 34)
+                            .background(AuthGlassBackground(cornerRadius: 17, interactive: true))
                     }
+                    .buttonStyle(AuthSmoothButtonStyle())
                     Button { dependencies.router.push(.call(chatID, true)) } label: {
                         Image(systemName: "video")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(TidePalette.success)
+                            .frame(width: 34, height: 34)
+                            .background(AuthGlassBackground(cornerRadius: 17, interactive: true))
                     }
+                    .buttonStyle(AuthSmoothButtonStyle())
                 }
             }
             .task { dependencies.messenger.markRead(chatID) }
@@ -241,7 +260,7 @@ struct ConversationView: View {
                     .lineLimit(1...5)
                     .padding(.horizontal, 13)
                     .padding(.vertical, 9)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .background(AuthGlassBackground(cornerRadius: 18, interactive: true))
                     .overlay {
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
                             .stroke(TidePalette.separator, lineWidth: 0.6)
@@ -260,7 +279,12 @@ struct ConversationView: View {
             .padding(.bottom, 9)
         }
         .padding(.top, 8)
-        .background(.bar)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(.white.opacity(0.08))
+                .frame(height: 0.6)
+        }
     }
 
     private var canSend: Bool {
@@ -271,9 +295,11 @@ struct ConversationView: View {
         let message = draft
         let outgoingAttachment = attachment
         let replyID = replyTo?.id
-        draft = ""
-        attachment = nil
-        replyTo = nil
+        withAnimation(.easeInOut(duration: 0.32)) {
+            draft = ""
+            attachment = nil
+            replyTo = nil
+        }
         guard let senderID = dependencies.session.currentUser?.id else { return }
         Task {
             await dependencies.messenger.send(
@@ -285,6 +311,30 @@ struct ConversationView: View {
                 replyTo: replyID
             )
         }
+    }
+}
+
+private struct ConversationToolbarTitle: View {
+    let chat: Chat
+
+    var body: some View {
+        HStack(spacing: 9) {
+            Image(systemName: chat.avatarSymbol)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 32, height: 32)
+                .background(TidePalette.success.gradient, in: Circle())
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(chat.title)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+                Text(chat.participants.count > 2 ? "\(chat.participants.count) участников" : "в сети")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: 210, alignment: .leading)
     }
 }
 

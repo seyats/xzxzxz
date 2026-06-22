@@ -39,8 +39,15 @@ final class SessionStore {
             errorMessage = "Введите username или почту и пароль."
             return
         }
+        if let user = userForUsernameLogin(normalizedIdentifier, password: password) {
+            currentUser = user
+            defaults.set(user.id.uuidString, forKey: currentUserKey)
+            defaults.set(true, forKey: profileSetupKey(for: user.id))
+            errorMessage = nil
+            return
+        }
         guard normalizedIdentifier == demoIdentifier || normalizedIdentifier == "\(demoIdentifier)@tide.app" else {
-            errorMessage = "Этот аккаунт пока доступен только для приватного preview. Используйте durov."
+            errorMessage = "Аккаунт не найден или пароль введён неверно."
             return
         }
         guard password == demoPassword else {
@@ -50,7 +57,7 @@ final class SessionStore {
         let user = ensureDemoUser()
         currentUser = user
         defaults.set(user.id.uuidString, forKey: currentUserKey)
-        defaults.set(false, forKey: profileSetupKey(for: user.id))
+        defaults.set(true, forKey: profileSetupKey(for: user.id))
         errorMessage = nil
     }
 
@@ -68,6 +75,7 @@ final class SessionStore {
             if let user = database?.user(username: "durov") {
                 currentUser = user
                 defaults.set(user.id.uuidString, forKey: currentUserKey)
+                defaults.set(true, forKey: profileSetupKey(for: user.id))
                 errorMessage = nil
                 return
             }
@@ -198,10 +206,11 @@ final class SessionStore {
         defaults.set(user.id.uuidString, forKey: currentUserKey)
     }
 
-    func completeProfileSetup(name: String, username: String) {
+    func completeProfileSetup(name: String, username: String, password: String? = nil) {
         guard var user = currentUser else { return }
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanUsername = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanPassword = password?.trimmingCharacters(in: .whitespacesAndNewlines)
         user.name = cleanName.isEmpty ? user.name : cleanName
         user.username = cleanUsername.isEmpty ? user.username : Self.fallbackUsername(from: cleanUsername)
         user.biography = user.isVerified ? "Аккаунт верифицирован" : "Зарегистрирован в Tide"
@@ -209,8 +218,30 @@ final class SessionStore {
         user.lastSeenAt = .now
         currentUser = user
         database?.updateUser(user)
+        if let cleanPassword, !cleanPassword.isEmpty {
+            let normalizedUsername = user.username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let account = "auth.username.\(normalizedUsername)"
+            try? SecureStore.set(Self.hash("\(normalizedUsername):\(cleanPassword)"), account: account)
+            try? SecureStore.set(user.id.uuidString, account: "\(account).user")
+        }
         defaults.set(user.id.uuidString, forKey: currentUserKey)
         defaults.set(true, forKey: profileSetupKey(for: user.id))
+    }
+
+    private func userForUsernameLogin(_ identifier: String, password: String) -> User? {
+        let normalizedUsername = identifier
+            .replacingOccurrences(of: "@", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard !normalizedUsername.isEmpty else { return nil }
+        let account = "auth.username.\(normalizedUsername)"
+        let hash = Self.hash("\(normalizedUsername):\(password)")
+        guard SecureStore.value(account: account) == hash,
+              let storedUserID = SecureStore.value(account: "\(account).user").flatMap(UUID.init(uuidString:)),
+              let user = database?.user(id: storedUserID) else {
+            return nil
+        }
+        return user
     }
 
     func signOut() {

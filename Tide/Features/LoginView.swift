@@ -44,9 +44,12 @@ private struct HeaderSection: View {
     var body: some View {
         VStack(spacing: 22) {
             Image("TideBubbleLogo")
+                .renderingMode(.original)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 104, height: 104)
+                .frame(width: 92, height: 92)
+                .padding(8)
+                .background(.white.opacity(0.08), in: Circle())
                 .clipShape(Circle())
                 .shadow(color: .white.opacity(0.18), radius: 20, y: 8)
 
@@ -87,7 +90,7 @@ private struct SocialButton: View {
                 .frame(width: 25, height: 25)
                 .frame(width: 54, height: 54)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AuthSmoothButtonStyle())
         .tideGlass(interactive: true, cornerRadius: 18)
     }
 }
@@ -97,9 +100,16 @@ private struct BrandIcon: View {
     let brand: SocialBrand
 
     var body: some View {
-        Image(imageName)
-            .resizable()
-            .scaledToFit()
+        if brand == .apple {
+            Image(systemName: "apple.logo")
+                .font(.system(size: 25, weight: .semibold))
+                .foregroundStyle(.white)
+        } else {
+            Image(imageName)
+                .renderingMode(.original)
+                .resizable()
+                .scaledToFit()
+        }
     }
 
     private var imageName: String {

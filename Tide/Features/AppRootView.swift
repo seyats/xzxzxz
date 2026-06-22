@@ -6,13 +6,20 @@ struct AppRootView: View {
     @Environment(AppDependencies.self) private var dependencies
 
     var body: some View {
-        if dependencies.session.isAuthenticated, dependencies.session.needsProfileSetup {
-            AuthProfileSetupView()
-        } else if dependencies.session.isAuthenticated {
-            MainTabView()
-        } else {
-            PremiumAuthenticationView()
+        ZStack {
+            if dependencies.session.isAuthenticated, dependencies.session.needsProfileSetup {
+                AuthProfileSetupView()
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else if dependencies.session.isAuthenticated {
+                MainTabView()
+                    .transition(.opacity.combined(with: .scale(scale: 1.02)))
+            } else {
+                PremiumAuthenticationView()
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
         }
+        .animation(.easeInOut(duration: 0.62), value: dependencies.session.isAuthenticated)
+        .animation(.easeInOut(duration: 0.62), value: dependencies.session.needsProfileSetup)
     }
 }
 
@@ -46,6 +53,7 @@ struct MainTabView: View {
                 .tag(tab)
             }
         }
+        .animation(.easeInOut(duration: 0.42), value: router.selectedTab)
         .sheet(item: $router.sheet, content: sheet)
         .onOpenURL { router.handle($0) }
     }
