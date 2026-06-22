@@ -1370,7 +1370,9 @@ struct SettingsScreenBackground: View {
             endPoint: .bottom
         )
     }
-}private enum StorageFileFilter: CaseIterable, Identifiable {
+}
+
+private enum StorageFileFilter: CaseIterable, Identifiable {
     case all
     case images
     case videos
