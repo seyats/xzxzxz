@@ -1,4 +1,4 @@
-import PhotosUI
+﻿import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
 import UIKit
@@ -166,7 +166,7 @@ struct EditProfileView: View {
                     }
                 }
             ))
-                .tint(.white)
+                .tint(.green)
             if hasBirthday {
                 DatePicker("День рождения", selection: $birthday, displayedComponents: .date)
                     .datePickerStyle(.wheel)
@@ -424,7 +424,7 @@ struct SettingsView: View {
 
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 16) {
-                settingsHeader
+                GlassScreenHeader(title: "Настройки")
                     .padding(.top, 8)
 
                 SettingsProfileCard(
@@ -458,24 +458,19 @@ struct SettingsView: View {
                     SettingsGlassRow(
                         symbol: "arrow.triangle.2.circlepath",
                         title: "Запросить доступ",
-                        trailing: notificationStatusTitle,
-                        showsChevron: false
+                        trailing: notificationStatusTitle
                     ) {
                         Task { await dependencies.push.requestAuthorization() }
                     }
                 }
 
                 SettingsGlassSection(title: "Приватность") {
-                    SettingsToggleRow(symbol: "checkmark.shield", title: "Отчёты о прочтении", isOn: $preferences.readReceiptsEnabled)
-                    SettingsToggleRow(symbol: "eye.slash", title: "Скрывать чувствительный контент", isOn: $preferences.sensitiveContentHidden)
                     SettingsGlassRow(symbol: "person.2.slash", title: "Заблокированные аккаунты", trailing: blockedCountText) {
                         dependencies.router.push(.blockedAccounts)
                     }
                 }
 
                 SettingsGlassSection(title: "Данные") {
-                    SettingsToggleRow(symbol: "play.circle", title: "Автовоспроизведение видео", isOn: $preferences.autoplayVideo)
-                    SettingsToggleRow(symbol: "antenna.radiowaves.left.and.right", title: "Загрузка через сотовую сеть", isOn: $preferences.cellularUploadsEnabled)
                     SettingsGlassRow(symbol: "externaldrive", title: "Хранилище") {
                         dependencies.router.push(.storage)
                     }
@@ -518,7 +513,7 @@ struct SettingsView: View {
             }
             .padding(.bottom, 28)
         }
-        .background(backgroundColor.ignoresSafeArea())
+        .background(SettingsScreenBackground().ignoresSafeArea())
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Удалить этот локальный аккаунт?", isPresented: $confirmsDeletion, titleVisibility: .visible) {
@@ -530,10 +525,28 @@ struct SettingsView: View {
         }
     }
 
-    private var backgroundColor: Color {
-        Color(red: 0.08, green: 0.08, blue: 0.09)
+    private var notificationStatusTitle: String {
+        switch dependencies.push.authorizationStatus {
+        case .authorized:
+            return "Разрешено"
+        case .denied:
+            return "Запрещено"
+        case .provisional:
+            return "Временно"
+        case .ephemeral:
+            return "Временный доступ"
+        case .notDetermined:
+            return "Не запрошено"
+        @unknown default:
+            return "Неизвестно"
+        }
     }
 
+    private var blockedCountText: String {
+        let count = dependencies.database.users().filter(\.isBlocked).count
+        return count == 0 ? "Нет" : "\(count)"
+    }
+}
     private var notificationStatusTitle: String {
         switch dependencies.push.authorizationStatus {
         case .authorized:
@@ -671,7 +684,7 @@ private struct SettingsToggleRow: View {
 
             Toggle("", isOn: $isOn)
                 .labelsHidden()
-                .tint(.white)
+                .tint(.green)
         }
         .padding(.horizontal, 16)
         .frame(height: 48)
@@ -714,7 +727,7 @@ struct AppearanceView: View {
                             Text("A")
                                 .font(.system(size: 16, weight: .semibold))
                             Slider(value: $textScale, in: 0...1)
-                                .tint(.white)
+                                .tint(.green)
                             Text("A")
                                 .font(.system(size: 20, weight: .semibold))
                         }
@@ -766,7 +779,7 @@ struct AppearanceView: View {
                         HStack {
                             Text("Прозрачность")
                             Slider(value: $preferences.galleryBackdropOpacity, in: 0.2...1)
-                                .tint(.white)
+                                .tint(.green)
                         }
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
@@ -785,7 +798,7 @@ struct AppearanceView: View {
             }
             .padding(.bottom, 34)
         }
-        .background(Color(red: 64.0 / 255.0, green: 64.0 / 255.0, blue: 64.0 / 255.0).ignoresSafeArea())
+        .background(SettingsScreenBackground().ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
         .onChange(of: wallpaperItem) { _, item in
@@ -919,7 +932,7 @@ struct StorageView: View {
             }
             .padding(.bottom, 34)
         }
-        .background(Color(red: 64.0 / 255.0, green: 64.0 / 255.0, blue: 64.0 / 255.0).ignoresSafeArea())
+        .background(SettingsScreenBackground().ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
         .task { await loadSnapshot() }
@@ -996,7 +1009,7 @@ struct DataManagementView: View {
 
             Spacer()
         }
-        .background(Color(red: 64.0 / 255.0, green: 64.0 / 255.0, blue: 64.0 / 255.0).ignoresSafeArea())
+        .background(SettingsScreenBackground().ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
         .task { snapshot = (try? await MediaLibrary.shared.storageSnapshot()) ?? MediaStorageSnapshot(files: []) }
@@ -1047,7 +1060,7 @@ struct StorageFilesView: View {
                 }
             }
         }
-        .background(Color(red: 64.0 / 255.0, green: 64.0 / 255.0, blue: 64.0 / 255.0).ignoresSafeArea())
+        .background(SettingsScreenBackground().ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
         .task { snapshot = (try? await MediaLibrary.shared.storageSnapshot()) ?? MediaStorageSnapshot(files: []) }
@@ -1196,7 +1209,7 @@ struct ActiveSessionsView: View {
             }
             .padding(.bottom, 34)
         }
-        .background(Color(red: 64.0 / 255.0, green: 64.0 / 255.0, blue: 64.0 / 255.0).ignoresSafeArea())
+        .background(SettingsScreenBackground().ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
         .task { reload() }
@@ -1208,7 +1221,7 @@ struct ActiveSessionsView: View {
     }
 }
 
-private struct GlassScreenHeader: View {
+struct GlassScreenHeader: View {
     let title: String
 
     var body: some View {
@@ -1226,7 +1239,7 @@ private struct GlassScreenHeader: View {
     }
 }
 
-private struct GlassBackButton: View {
+struct GlassBackButton: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -1235,7 +1248,7 @@ private struct GlassBackButton: View {
                 .font(.system(size: 22, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(width: 40, height: 40)
-                .background(StandardPanelBackground(cornerRadius: 18))
+                .tideGlass(interactive: true, cornerRadius: 18, tint: .white.opacity(0.08))
         }
         .buttonStyle(.plain)
     }
@@ -1345,7 +1358,19 @@ private struct SignalSettingsCardBackground: View {
     }
 }
 
-private enum StorageFileFilter: CaseIterable, Identifiable {
+
+struct SettingsScreenBackground: View {
+    var body: some View {
+        LinearGradient(
+            colors: [
+                Color(red: 0.08, green: 0.08, blue: 0.09),
+                Color(red: 0.06, green: 0.06, blue: 0.07),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+}private enum StorageFileFilter: CaseIterable, Identifiable {
     case all
     case images
     case videos

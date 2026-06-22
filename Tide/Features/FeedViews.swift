@@ -232,7 +232,8 @@ struct ComposerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var bodyText = ""
     @State private var visibility = PostVisibility.everyone
-    @State private var location = ""
+    @State private var mediaItems: [PhotosPickerItem] = []
+    @State private var selectedMedia: [ComposerMedia] = []
 
     var body: some View {
         NavigationStack {
@@ -242,15 +243,13 @@ struct ComposerView: View {
                         HStack {
                             AvatarView(user: dependencies.session.currentUser ?? User(id: UUID(), name: "Tide", username: "tide", biography: "", avatarSymbol: "person.crop.circle.fill", isVerified: false, isAdministrator: false, followers: 0, following: 0, joinedAt: .now, coverSymbol: "water"), size: 38)
                             VStack(alignment: .leading, spacing: 2) {
-                        Text("Публикует")
-                            .font(.caption).foregroundStyle(.secondary)
+                                Text("Публикует")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                                 Text(dependencies.session.currentUser?.handle ?? "@tide")
                                     .font(.subheadline.weight(.semibold))
                             }
                             Spacer()
-                            TextField("Локация", text: $location)
-                                .frame(width: 120)
-                                .textInputAutocapitalization(.never)
                         }
                         ZStack(alignment: .topLeading) {
                             if bodyText.isEmpty {
@@ -263,9 +262,26 @@ struct ComposerView: View {
                                 .frame(minHeight: 160)
                                 .scrollContentBackground(.hidden)
                         }
-                        HStack(spacing: 10) {
-                            actionTile(symbol: "location.fill", title: "Локация")
-                            actionTile(symbol: "clock.badge.checkmark", title: "Запланировать")
+                        if !selectedMedia.isEmpty {
+                            ComposerMediaStrip(media: selectedMedia) { media in
+                                selectedMedia.removeAll { $0.id == media.id }
+                                Task { await MediaLibrary.shared.remove(media) }
+                            }
+                        }
+                        PhotosPicker(selection: $mediaItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos])) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "photo.on.rectangle")
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text(selectedMedia.isEmpty ? "Фото и видео" : "Добавить ещё")
+                                    .font(.system(size: 15, weight: .semibold))
+                                Spacer()
+                                Text(selectedMedia.isEmpty ? "Галерея" : "\(selectedMedia.count)")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 14)
+                            .frame(height: 48)
+                            .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
                     }
                 } header: {
@@ -282,31 +298,32 @@ struct ComposerView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Опубликовать", action: publish)
-                        .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedMedia.isEmpty)
                 }
             }
             .task { restoreDraft() }
             .onDisappear { saveDraftIfNeeded() }
+            .onChange(of: mediaItems) { _, items in
+                guard !items.isEmpty else { return }
+                Task {
+                    if let imported = try? await MediaLibrary.shared.importItems(items) {
+                        await MainActor.run {
+                            selectedMedia.append(contentsOf: imported)
+                            mediaItems = []
+                        }
+                    }
+                }
+            }
         }
-    }
-
-    private func actionTile(symbol: String, title: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: symbol)
-                .font(.title3)
-            Text(title)
-                .font(.caption2.weight(.semibold))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(TidePalette.subtle, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func publish() {
         guard let user = dependencies.session.currentUser else { return }
-        dependencies.social.createPost(body: bodyText, visibility: visibility, author: user, media: [], location: location.isEmpty ? nil : location)
+        let attachments = selectedMedia.map { MediaAttachment(id: $0.id, kind: $0.kind, url: $0.url, aspectRatio: $0.aspectRatio) }
+        dependencies.social.createPost(body: bodyText, visibility: visibility, author: user, media: attachments)
         if let draft = dependencies.database.postDraft(ownerID: user.id) { dependencies.database.deleteDraft(draft) }
         bodyText = ""
+        selectedMedia = []
         dismiss()
     }
 
@@ -315,12 +332,27 @@ struct ComposerView: View {
               let draft = dependencies.database.postDraft(ownerID: user.id) else { return }
         bodyText = draft.text
         visibility = PostVisibility(rawValue: draft.visibilityRawValue) ?? .everyone
+        selectedMedia = draft.mediaURLStrings.compactMap { urlString in
+            guard let url = URL(string: urlString), url.isFileURL else { return nil }
+            let extensionType = url.pathExtension.lowercased()
+            let isVideo = ["mov", "mp4", "m4v", "avi"].contains(extensionType)
+            let kind: MediaKind = isVideo ? .video : .photo
+            return ComposerMedia(
+                id: UUID(),
+                url: url,
+                kind: kind,
+                aspectRatio: isVideo ? 16.0 / 9.0 : 1,
+                attachmentKind: isVideo ? .video : .photo,
+                filename: url.lastPathComponent,
+                byteCount: Int64((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+            )
+        }
     }
 
     private func saveDraftIfNeeded() {
         guard let user = dependencies.session.currentUser,
-              !bodyText.isEmpty else { return }
-        dependencies.database.saveDraft(ownerID: user.id, text: bodyText, visibility: visibility, mediaURLs: [])
+              !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !selectedMedia.isEmpty else { return }
+        dependencies.database.saveDraft(ownerID: user.id, text: bodyText, visibility: visibility, mediaURLs: selectedMedia.map(\.url))
     }
 }
 

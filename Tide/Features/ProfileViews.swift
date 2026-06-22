@@ -19,26 +19,42 @@ struct ProfileView: View {
     private var isCurrentUser: Bool { profile.id == dependencies.session.currentUser?.id }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
-                profileHeader
-                Section {
-                    if visiblePosts.isEmpty {
-                        ContentUnavailableView("Постов нет", systemImage: "rectangle.stack", description: Text("Опубликованные посты будут отображаться здесь."))
-                            .padding(.top, 38)
+        ZStack {
+            SettingsScreenBackground().ignoresSafeArea()
+            ScrollView {
+                LazyVStack(spacing: 14, pinnedViews: .sectionHeaders) {
+                    profileHeader
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 6)
+                        .background(AuthGlassBackground(cornerRadius: 30, interactive: false))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 30, style: .continuous)
+                                .stroke(.white.opacity(0.06), lineWidth: 0.8)
+                        }
+                        .padding(.horizontal, 16)
+
+                    Section {
+                        if visiblePosts.isEmpty {
+                            ContentUnavailableView("Постов нет", systemImage: "rectangle.stack", description: Text("Опубликованные посты будут отображаться здесь."))
+                                .padding(.top, 38)
+                        }
+                        ForEach(visiblePosts) { post in
+                            PostCard(post: post)
+                            Divider().padding(.leading, 68)
+                        }
+                    } header: {
+                        Picker("Раздел профиля", selection: $section) {
+                            ForEach(sections, id: \.self) { Text($0.title).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(AuthGlassBackground(cornerRadius: 22, interactive: false))
+                        .padding(.horizontal, 16)
                     }
-                    ForEach(visiblePosts) { post in
-                        PostCard(post: post)
-                        Divider().padding(.leading, 68)
-                    }
-                } header: {
-                    Picker("Раздел профиля", selection: $section) {
-                        ForEach(sections, id: \.self) { Text($0.title).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
                 }
+                .padding(.bottom, 20)
             }
         }
         .navigationTitle(profile.handle)
@@ -120,7 +136,10 @@ struct ProfileView: View {
                     .clipped()
             } else {
                 LinearGradient(
-                    colors: [TidePalette.ink.opacity(0.28), TidePalette.subtle],
+                    colors: [
+                        Color(red: 0.03, green: 0.03, blue: 0.05),
+                        Color(red: 0.12, green: 0.16, blue: 0.20)
+                    ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -147,7 +166,10 @@ struct ProfileView: View {
         } label: {
             AvatarView(user: profile, size: 92)
                 .padding(4)
-                .background(TidePalette.paper, in: Circle())
+                .background(.white.opacity(0.06), in: Circle())
+                .overlay {
+                    Circle().stroke(.white.opacity(0.10), lineWidth: 0.7)
+                }
         }
         .buttonStyle(.plain)
         .disabled(!isCurrentUser)
@@ -632,17 +654,45 @@ struct LegacySettingsView: View {
 struct BlockedAccountsView: View {
     @Environment(AppDependencies.self) private var dependencies
 
+    private var blockedUsers: [User] {
+        dependencies.database.users().filter(\.isBlocked)
+    }
+
     var body: some View {
-        List(dependencies.database.users().filter(\.isBlocked)) { user in
-            UserRow(user: user)
-        }
-        .scrollContentBackground(.hidden)
-        .overlay {
-            if !dependencies.database.users().contains(where: \.isBlocked) {
-                ContentUnavailableView("Заблокированных аккаунтов нет", systemImage: "person.crop.circle.badge.checkmark")
+        ZStack {
+            SettingsScreenBackground().ignoresSafeArea()
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 14) {
+                    GlassScreenHeader(title: "Заблокированные аккаунты")
+
+                    if blockedUsers.isEmpty {
+                        ContentUnavailableView("Заблокированных аккаунтов нет", systemImage: "person.crop.circle.badge.checkmark")
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, minHeight: 280)
+                    } else {
+                        VStack(spacing: 0) {
+                            ForEach(blockedUsers) { user in
+                                UserRow(user: user)
+                                    .padding(.horizontal, 16)
+                                    .frame(height: 56)
+                                if user.id != blockedUsers.last?.id {
+                                    Rectangle()
+                                        .fill(.white.opacity(0.08))
+                                        .frame(height: 1)
+                                        .padding(.leading, 68)
+                                        .padding(.trailing, 16)
+                                }
+                            }
+                        }
+                        .background(AuthGlassBackground(cornerRadius: 22, interactive: false))
+                        .padding(.horizontal, 16)
+                    }
+                }
+                .padding(.bottom, 34)
             }
         }
-        .navigationTitle("Заблокированные аккаунты")
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden(true)
     }
 }
 

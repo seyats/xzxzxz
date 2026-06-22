@@ -563,13 +563,13 @@ final class SocialStore {
 
     func createPost(body: String, visibility: PostVisibility, author: User, media: [MediaAttachment] = [], location: String? = nil) {
         let cleanBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanBody.isEmpty else { return }
+        guard !cleanBody.isEmpty || !media.isEmpty else { return }
         let post = Post(
             id: UUID(),
             author: author,
             body: cleanBody,
             createdAt: .now,
-            media: [],
+            media: media,
             likeCount: 0,
             repostCount: 0,
             commentCount: 0,

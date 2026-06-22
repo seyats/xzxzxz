@@ -273,6 +273,28 @@ struct ConversationView: View {
             .background(AuthGlassBackground(cornerRadius: 22, interactive: false))
 
             Button {
+                dependencies.router.push(.call(chatID, false), tab: .chats)
+            } label: {
+                Image(systemName: "phone.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(AuthGlassBackground(cornerRadius: 22, interactive: true))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                dependencies.router.push(.call(chatID, true), tab: .chats)
+            } label: {
+                Image(systemName: "video.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(AuthGlassBackground(cornerRadius: 22, interactive: true))
+            }
+            .buttonStyle(.plain)
+
+            Button {
                 if let profile = profileTarget(for: chat) {
                     dependencies.router.push(.profile(profile))
                 }
@@ -756,6 +778,8 @@ struct CallView: View {
     @State private var cameraEnabled = true
     @State private var startedAt = Date.now
     @State private var state: CallState = .ringing
+    @State private var callSessionID: UUID?
+    @State private var callError: String?
 
     private enum CallState: String {
         case ringing
@@ -776,49 +800,78 @@ struct CallView: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             ZStack {
-                Color.black.ignoresSafeArea()
-                VStack(spacing: 28) {
-                    Spacer()
-                    if let chat = dependencies.messenger.chat(id: chatID) {
-                        ZStack {
-                            Circle()
-                                .fill(.white.opacity(0.12))
-                                .frame(width: 132, height: 132)
-                            Image(systemName: chat.avatarSymbol)
-                                .font(.system(size: 52))
+                callBackdrop
+                VStack(spacing: 22) {
+                    HStack {
+                        Spacer()
+                        Button {
+                            Task { await endAndDismiss() }
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 15, weight: .bold))
                                 .foregroundStyle(.white)
+                                .frame(width: 40, height: 40)
+                                .background(.white.opacity(0.10), in: Circle())
+                                .overlay(Circle().stroke(.white.opacity(0.14), lineWidth: 0.8))
                         }
-                        Text(chat.title)
-                            .font(.largeTitle.bold())
-                            .foregroundStyle(.white)
+                        .buttonStyle(.plain)
                     }
-                    Text(state == .active ? duration(from: startedAt, to: context.date) : state.title)
-                        .font(.title3.monospacedDigit())
-                        .foregroundStyle(.white.opacity(0.7))
-                    Spacer()
+
+                    Spacer(minLength: 0)
+
+                    if let chat = dependencies.messenger.chat(id: chatID) {
+                        VStack(spacing: 18) {
+                            ZStack {
+                                Circle()
+                                    .fill(.white.opacity(0.10))
+                                    .frame(width: 176, height: 176)
+                                    .blur(radius: 0.2)
+                                Circle()
+                                    .fill(isVideo ? Color.blue.opacity(0.18) : Color.green.opacity(0.16))
+                                    .frame(width: 220, height: 220)
+                                    .blur(radius: 24)
+                                Image(systemName: chat.avatarSymbol)
+                                    .font(.system(size: 58, weight: .semibold))
+                                    .foregroundStyle(.white)
+                            }
+                            Text(chat.title)
+                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                            Text(callDisplayText(for: context.date))
+                                .font(.system(size: 17, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.72))
+                        }
+                    }
+
+                    Spacer(minLength: 0)
+
                     HStack(spacing: 16) {
                         callButton(isMuted ? "mic.slash.fill" : "mic.fill", active: isMuted) { isMuted.toggle() }
                         if isVideo {
                             callButton(cameraEnabled ? "video.fill" : "video.slash.fill", active: !cameraEnabled) { cameraEnabled.toggle() }
                         }
                         callButton(speakerEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill", active: !speakerEnabled) { speakerEnabled.toggle() }
-                        callButton("phone.down.fill", color: TidePalette.danger) { dismiss() }
+                        callButton("phone.down.fill", color: TidePalette.danger) {
+                            Task { await endAndDismiss() }
+                        }
                     }
-                    .padding(.bottom, 38)
+                    .padding(.bottom, 28)
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
             }
         }
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .tabBar)
-        .onAppear {
-            state = .connecting
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(900))
-                withAnimation(.easeInOut(duration: 0.45)) {
-                    state = .active
-                    startedAt = .now
-                }
-            }
+        .task { await bootstrapCall() }
+        .onDisappear {
+            Task { await endCurrentCall() }
+        }
+        .alert("Звонок", isPresented: Binding(get: { callError != nil }, set: { if !$0 { callError = nil } })) {
+            Button("ОК", role: .cancel) {}
+        } message: {
+            Text(callError ?? "")
         }
     }
 
@@ -832,10 +885,91 @@ struct CallView: View {
                 .font(.title2)
                 .foregroundStyle(.white)
                 .frame(width: 58, height: 58)
-                .background(isEndedButton(symbol) ? color : .white.opacity(active ? 0.24 : 0.12), in: Circle())
-                .overlay(Circle().stroke(.white.opacity(active ? 0.34 : 0.16), lineWidth: 0.8))
+            .background(isEndedButton(symbol) ? color : .white.opacity(active ? 0.24 : 0.12), in: Circle())
+            .overlay(Circle().stroke(.white.opacity(active ? 0.34 : 0.16), lineWidth: 0.8))
         }
         .buttonStyle(TideGlassIconButtonStyle())
+    }
+
+    private var callBackdrop: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.04, green: 0.05, blue: 0.07),
+                    Color(red: 0.02, green: 0.02, blue: 0.03),
+                    Color.black
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Circle()
+                .fill(Color.blue.opacity(0.16))
+                .frame(width: 320, height: 320)
+                .blur(radius: 38)
+                .offset(x: -128, y: -220)
+            Circle()
+                .fill(Color.green.opacity(0.12))
+                .frame(width: 280, height: 280)
+                .blur(radius: 34)
+                .offset(x: 130, y: 220)
+        }
+        .ignoresSafeArea()
+    }
+
+    private func callDisplayText(for date: Date) -> String {
+        switch state {
+        case .ringing:
+            return "Звонок"
+        case .connecting:
+            return "Подключаемся..."
+        case .active:
+            return duration(from: startedAt, to: date)
+        case .ended:
+            return "Завершён"
+        }
+    }
+
+    private func bootstrapCall() async {
+        let shouldStart = await MainActor.run { callSessionID == nil }
+        guard shouldStart else { return }
+        await MainActor.run {
+            state = .connecting
+        }
+        do {
+            let session = try await dependencies.api.createCall(chatID: chatID, isVideo: isVideo)
+            await MainActor.run {
+                callSessionID = session.id
+                startedAt = .now
+            }
+            try? await Task.sleep(for: .milliseconds(850))
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.45)) {
+                    state = .active
+                }
+            }
+        } catch {
+            await MainActor.run {
+                callError = "Не удалось начать звонок."
+                state = .ended
+            }
+        }
+    }
+
+    private func endCurrentCall() async {
+        let sessionID = await MainActor.run { callSessionID }
+        guard let sessionID else { return }
+        _ = try? await dependencies.api.endCall(id: sessionID)
+        await MainActor.run {
+            self.callSessionID = nil
+        }
+    }
+
+    private func endAndDismiss() async {
+        await MainActor.run {
+            state = .ended
+        }
+        await endCurrentCall()
+        dismiss()
     }
 
     private func isEndedButton(_ symbol: String) -> Bool {
