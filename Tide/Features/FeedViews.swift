@@ -239,6 +239,7 @@ struct ComposerView: View {
     @State private var mediaItems: [PhotosPickerItem] = []
     @State private var selectedMedia: [ComposerMedia] = []
     @State private var isImportingFile = false
+    @State private var isShowingAttachmentOptions = false
 
     var body: some View {
         let hasSelectedMedia = !selectedMedia.isEmpty
@@ -276,7 +277,11 @@ struct ComposerView: View {
                                 Task { await MediaLibrary.shared.remove(media) }
                             }
                         }
-                        attachmentMenu(hasSelectedMedia: hasSelectedMedia, selectedMediaCount: selectedMediaCount)
+                        attachmentPickerTrigger(hasSelectedMedia: hasSelectedMedia, selectedMediaCount: selectedMediaCount)
+                        if isShowingAttachmentOptions {
+                            attachmentOptionsCard(hasSelectedMedia: hasSelectedMedia, selectedMediaCount: selectedMediaCount)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
                     }
                 } header: {
                     EmptyView()
@@ -304,6 +309,7 @@ struct ComposerView: View {
                         await MainActor.run {
                             selectedMedia.append(contentsOf: imported)
                             mediaItems = []
+                            isShowingAttachmentOptions = false
                         }
                     }
                 }
@@ -314,6 +320,7 @@ struct ComposerView: View {
                     if let media = try? await MediaLibrary.shared.importFile(url) {
                         await MainActor.run {
                             selectedMedia.append(media)
+                            isShowingAttachmentOptions = false
                         }
                     }
                 }
@@ -359,19 +366,10 @@ struct ComposerView: View {
         dependencies.database.saveDraft(ownerID: user.id, text: bodyText, visibility: visibility, mediaURLs: selectedMedia.map(\.url))
     }
 
-    private func attachmentMenu(hasSelectedMedia: Bool, selectedMediaCount: Int) -> some View {
-        Menu {
-            PhotosPicker(selection: $mediaItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos])) {
-                ComposerAttachmentMenuRow(
-                    title: hasSelectedMedia ? "Добавить ещё" : "Фотогалерея",
-                    systemImage: "photo.on.rectangle",
-                    trailing: hasSelectedMedia ? "\(selectedMediaCount)" : nil
-                )
-            }
-            Button {
-                isImportingFile = true
-            } label: {
-                ComposerAttachmentMenuRow(title: "Выбрать из файлов", systemImage: "folder")
+    private func attachmentPickerTrigger(hasSelectedMedia: Bool, selectedMediaCount: Int) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                isShowingAttachmentOptions.toggle()
             }
         } label: {
             Image(systemName: "paperclip")
@@ -379,8 +377,44 @@ struct ComposerView: View {
                 .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
                 .background(AuthGlassBackground(cornerRadius: 22, interactive: true))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(.white.opacity(0.08), lineWidth: 0.6)
+                }
         }
         .buttonStyle(.plain)
+        .overlay(alignment: .bottomLeading) {
+            EmptyView()
+        }
+    }
+
+    private func attachmentOptionsCard(hasSelectedMedia: Bool, selectedMediaCount: Int) -> some View {
+        VStack(spacing: 0) {
+            PhotosPicker(selection: $mediaItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos])) {
+                ComposerAttachmentMenuRow(
+                    title: hasSelectedMedia ? "Добавить ещё" : "Фотогалерея",
+                    systemImage: "photo.on.rectangle",
+                    trailing: hasSelectedMedia ? "\(selectedMediaCount)" : nil
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().overlay(.white.opacity(0.08))
+
+            Button {
+                isImportingFile = true
+                isShowingAttachmentOptions = false
+            } label: {
+                ComposerAttachmentMenuRow(title: "Выбрать из файлов", systemImage: "folder")
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(6)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(.white.opacity(0.12), lineWidth: 0.8)
+        }
     }
 }
 

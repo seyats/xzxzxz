@@ -138,6 +138,7 @@ struct ConversationView: View {
     @State private var recorder: AVAudioRecorder?
     @State private var isRecordingVoice = false
     @State private var recorderError: String?
+    @State private var isShowingAttachmentOptions = false
 
     var body: some View {
         if let chat = dependencies.messenger.chat(id: chatID) {
@@ -194,13 +195,17 @@ struct ConversationView: View {
                         attachment = imported.first
                     }
                     selectedItem = nil
+                    isShowingAttachmentOptions = false
                 }
             }
             .fileImporter(isPresented: $isImportingFile, allowedContentTypes: [.item], allowsMultipleSelection: false) { result in
                 guard case .success(let urls) = result, let url = urls.first else { return }
                 Task {
                     if let media = try? await MediaLibrary.shared.importFile(url) {
-                        await MainActor.run { attachment = media }
+                        await MainActor.run {
+                            attachment = media
+                            isShowingAttachmentOptions = false
+                        }
                     }
                 }
             }
@@ -210,7 +215,10 @@ struct ConversationView: View {
                     guard let data = image.jpegData(compressionQuality: 0.88) else { return }
                     Task {
                         if let media = try? await MediaLibrary.shared.importImageData(data) {
-                            await MainActor.run { attachment = media }
+                            await MainActor.run {
+                                attachment = media
+                                isShowingAttachmentOptions = false
+                            }
                         }
                     }
                 } onCancel: {
@@ -302,7 +310,7 @@ struct ConversationView: View {
             }
 
             HStack(alignment: .bottom, spacing: 10) {
-                attachmentMenu
+                attachmentPickerTrigger
 
                 HStack(spacing: 10) {
                     TextField("Сообщение", text: $draft, axis: .vertical)
@@ -340,6 +348,12 @@ struct ConversationView: View {
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 6)
+
+            if isShowingAttachmentOptions {
+                attachmentOptionsCard
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 2)
+            }
         }
         .padding(.top, 8)
     }
@@ -348,20 +362,10 @@ struct ConversationView: View {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || attachment != nil
     }
 
-    private var attachmentMenu: some View {
-        Menu {
-            Button {
-                isImportingFile = true
-            } label: {
-                Label("Прикрепить файл", systemImage: "paperclip")
-            }
-            Button {
-                isShowingCamera = true
-            } label: {
-                Label("Снять фото", systemImage: "camera")
-            }
-            PhotosPicker(selection: $selectedItem, matching: .any(of: [.images, .videos])) {
-                Label("Фото/видео из галереи", systemImage: "photo.on.rectangle")
+    private var attachmentPickerTrigger: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                isShowingAttachmentOptions.toggle()
             }
         } label: {
             Image(systemName: "paperclip")
@@ -369,8 +373,61 @@ struct ConversationView: View {
                 .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
                 .background(AuthGlassBackground(cornerRadius: 22, interactive: true))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(.white.opacity(0.08), lineWidth: 0.6)
+                }
         }
         .buttonStyle(.plain)
+    }
+
+    private var attachmentOptionsCard: some View {
+        VStack(spacing: 0) {
+            PhotosPicker(selection: $selectedItem, matching: .any(of: [.images, .videos])) {
+                attachmentRow(title: "Фотогалерея", systemImage: "photo.on.rectangle")
+            }
+            .buttonStyle(.plain)
+
+            Divider().overlay(.white.opacity(0.08))
+
+            Button {
+                isImportingFile = true
+                isShowingAttachmentOptions = false
+            } label: {
+                attachmentRow(title: "Выбрать из файлов", systemImage: "folder")
+            }
+            .buttonStyle(.plain)
+
+            Divider().overlay(.white.opacity(0.08))
+
+            Button {
+                isShowingCamera = true
+                isShowingAttachmentOptions = false
+            } label: {
+                attachmentRow(title: "Снять фото", systemImage: "camera")
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(6)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(.white.opacity(0.12), lineWidth: 0.8)
+        }
+    }
+
+    private func attachmentRow(title: String, systemImage: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 18, weight: .semibold))
+                .frame(width: 24)
+            Text(title)
+                .font(.system(size: 17, weight: .semibold))
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .frame(minWidth: 240, minHeight: 44, alignment: .leading)
     }
 
     private func primaryComposerAction() {

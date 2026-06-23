@@ -1198,10 +1198,10 @@ private struct SettingsGlassRowContent: View {
 private struct SignalSettingsSectionBackground: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .fill(Color(red: 0.14, green: 0.14, blue: 0.15))
+            .fill(.ultraThinMaterial)
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(0.06), lineWidth: 0.7)
+                    .stroke(Color.white.opacity(0.10), lineWidth: 0.8)
             }
     }
 }
@@ -1209,10 +1209,10 @@ private struct SignalSettingsSectionBackground: View {
 private struct SignalSettingsCardBackground: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .fill(Color(red: 0.14, green: 0.14, blue: 0.15))
+            .fill(.ultraThinMaterial)
             .overlay {
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color.white.opacity(0.06), lineWidth: 0.7)
+                    .stroke(Color.white.opacity(0.10), lineWidth: 0.8)
             }
     }
 }
