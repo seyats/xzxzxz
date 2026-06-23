@@ -60,9 +60,7 @@ struct ProfileView: View {
         .navigationTitle(profile.handle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if isCurrentUser {
-                Button { dependencies.router.push(.settings) } label: { Image(systemName: "gearshape") }
-            } else {
+            if !isCurrentUser {
                 Menu {
                     Button(profile.isBlocked ? "Разблокировать" : "Заблокировать", role: .destructive, action: toggleBlock)
                     Button("Пожаловаться", role: .destructive) { dependencies.router.sheet = .report(profile.id, "user") }
@@ -79,22 +77,24 @@ struct ProfileView: View {
             ZStack(alignment: .bottomLeading) {
                 coverView
                     .frame(height: 150)
-                avatarButton
+                AvatarView(user: profile, size: 92)
+                    .padding(4)
+                    .background(.white.opacity(0.06), in: Circle())
+                    .overlay {
+                        Circle().stroke(.white.opacity(0.10), lineWidth: 0.7)
+                    }
                     .offset(x: 18, y: 42)
             }
-            HStack {
-                Spacer()
-                if isCurrentUser {
-                    Button("Редактировать") { dependencies.router.sheet = .editProfile }
-                        .buttonStyle(TideSecondaryButtonStyle())
-                } else {
+            if !isCurrentUser {
+                HStack {
+                    Spacer()
                     Button("Сообщение", action: startMessage)
                         .buttonStyle(TideSecondaryButtonStyle())
                     Button(profile.isFollowing ? "Вы подписаны" : "Подписаться", action: toggleFollow)
                         .buttonStyle(TidePrimaryButtonStyle())
                 }
+                .padding(.horizontal)
             }
-            .padding(.horizontal)
             VStack(alignment: .leading, spacing: 7) {
                 VerifiedName(user: profile).font(.title2)
                 Text(profile.handle).foregroundStyle(.secondary)
@@ -145,34 +145,6 @@ struct ProfileView: View {
                 )
             }
         }
-        .overlay(alignment: .topTrailing) {
-            if isCurrentUser {
-                Button {
-                    dependencies.router.sheet = .editProfile
-                } label: {
-                    Image(systemName: "camera.fill")
-                        .font(.footnote.weight(.semibold))
-                        .frame(width: 34, height: 34)
-                        .background(.black.opacity(0.35), in: Circle())
-                }
-                .padding(12)
-            }
-        }
-    }
-
-    private var avatarButton: some View {
-        Button {
-            if isCurrentUser { dependencies.router.sheet = .editProfile }
-        } label: {
-            AvatarView(user: profile, size: 92)
-                .padding(4)
-                .background(.white.opacity(0.06), in: Circle())
-                .overlay {
-                    Circle().stroke(.white.opacity(0.10), lineWidth: 0.7)
-                }
-        }
-        .buttonStyle(.plain)
-        .disabled(!isCurrentUser)
     }
 
     private var authoredPosts: [Post] { dependencies.social.posts.filter { $0.author.id == profile.id } }

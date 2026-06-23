@@ -160,6 +160,10 @@ struct PostCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .onTapGesture { openPostIfNeeded() }
+                if !post.media.isEmpty {
+                    PostMediaGrid(media: post.media)
+                        .frame(maxWidth: .infinity)
+                }
                 if let location = post.location {
                     Label(location, systemImage: "location.fill").font(.caption).foregroundStyle(.secondary)
                 }
@@ -234,6 +238,7 @@ struct ComposerView: View {
     @State private var visibility = PostVisibility.everyone
     @State private var mediaItems: [PhotosPickerItem] = []
     @State private var selectedMedia: [ComposerMedia] = []
+    @State private var isImportingFile = false
 
     var body: some View {
         let hasSelectedMedia = !selectedMedia.isEmpty
@@ -271,21 +276,7 @@ struct ComposerView: View {
                                 Task { await MediaLibrary.shared.remove(media) }
                             }
                         }
-                        PhotosPicker(selection: $mediaItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos])) {
-                            HStack(spacing: 10) {
-                                Image(systemName: "photo.on.rectangle")
-                                    .font(.system(size: 16, weight: .semibold))
-                                Text(hasSelectedMedia ? "Добавить ещё" : "Фото и видео")
-                                    .font(.system(size: 15, weight: .semibold))
-                                Spacer()
-                                Text(hasSelectedMedia ? "\(selectedMediaCount)" : "Галерея")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 14)
-                            .frame(height: 48)
-                            .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        }
+                        attachmentMenu(hasSelectedMedia: hasSelectedMedia, selectedMediaCount: selectedMediaCount)
                     }
                 } header: {
                     EmptyView()
@@ -313,6 +304,16 @@ struct ComposerView: View {
                         await MainActor.run {
                             selectedMedia.append(contentsOf: imported)
                             mediaItems = []
+                        }
+                    }
+                }
+            }
+            .fileImporter(isPresented: $isImportingFile, allowedContentTypes: [.item], allowsMultipleSelection: false) { result in
+                guard case .success(let urls) = result, let url = urls.first else { return }
+                Task {
+                    if let media = try? await MediaLibrary.shared.importFile(url) {
+                        await MainActor.run {
+                            selectedMedia.append(media)
                         }
                     }
                 }
@@ -356,6 +357,49 @@ struct ComposerView: View {
         guard let user = dependencies.session.currentUser,
               !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !selectedMedia.isEmpty else { return }
         dependencies.database.saveDraft(ownerID: user.id, text: bodyText, visibility: visibility, mediaURLs: selectedMedia.map(\.url))
+    }
+
+    private func attachmentMenu(hasSelectedMedia: Bool, selectedMediaCount: Int) -> some View {
+        Menu {
+            PhotosPicker(selection: $mediaItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos])) {
+                menuRow(
+                    title: hasSelectedMedia ? "Добавить ещё" : "Фотогалерея",
+                    systemImage: "photo.on.rectangle",
+                    trailing: hasSelectedMedia ? "\(selectedMediaCount)" : nil
+                )
+            }
+            Button {
+                isImportingFile = true
+            } label: {
+                menuRow(title: "Выбрать из файлов", systemImage: "folder")
+            }
+        } label: {
+            Image(systemName: "paperclip")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .background(AuthGlassBackground(cornerRadius: 22, interactive: true))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func menuRow(title: String, systemImage: String, trailing: String? = nil) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 18, weight: .semibold))
+                .frame(width: 24)
+            Text(title)
+                .font(.system(size: 17, weight: .semibold))
+            Spacer(minLength: 0)
+            if let trailing {
+                Text(trailing)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .frame(minWidth: 240, minHeight: 44, alignment: .leading)
     }
 }
 

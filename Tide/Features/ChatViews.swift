@@ -128,7 +128,6 @@ struct ChatRow: View {
 
 struct ConversationView: View {
     @Environment(AppDependencies.self) private var dependencies
-    @Environment(\.dismiss) private var dismiss
     let chatID: UUID
     @State private var draft = ""
     @State private var selectedItem: PhotosPickerItem?
@@ -241,23 +240,7 @@ struct ConversationView: View {
 
     private func chatHeader(_ chat: Chat) -> some View {
         HStack(spacing: 12) {
-            Button { dismiss() } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 20, weight: .bold))
-                    if chat.unreadCount > 0 {
-                        Text("\(chat.unreadCount)")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.black)
-                            .frame(width: 24, height: 24)
-                            .background(.white, in: Circle())
-                    }
-                }
-                .foregroundStyle(.white)
-                .frame(minWidth: 44, minHeight: 44)
-                .background(AuthGlassBackground(cornerRadius: 22, interactive: true))
-            }
-            .buttonStyle(.plain)
+            GlassBackButton()
 
             VStack(spacing: 2) {
                 Text(chat.title)
@@ -271,28 +254,6 @@ struct ConversationView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 44)
             .background(AuthGlassBackground(cornerRadius: 22, interactive: false))
-
-            Button {
-                dependencies.router.push(.call(chatID, false), tab: .chats)
-            } label: {
-                Image(systemName: "phone.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(AuthGlassBackground(cornerRadius: 22, interactive: true))
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                dependencies.router.push(.call(chatID, true), tab: .chats)
-            } label: {
-                Image(systemName: "video.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(AuthGlassBackground(cornerRadius: 22, interactive: true))
-            }
-            .buttonStyle(.plain)
 
             Button {
                 if let profile = profileTarget(for: chat) {
@@ -312,7 +273,7 @@ struct ConversationView: View {
     }
 
     private var composer: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             if let replyTo {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
@@ -340,31 +301,37 @@ struct ConversationView: View {
                 .padding(.horizontal, 14)
             }
 
-            HStack(spacing: 8) {
+            HStack(alignment: .bottom, spacing: 10) {
                 attachmentMenu
 
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     TextField("Сообщение", text: $draft, axis: .vertical)
                         .lineLimit(1...5)
                         .textInputAutocapitalization(.sentences)
+                        .padding(.vertical, 10)
                     Image(systemName: attachment == nil ? "circle.lefthalf.filled" : "paperclip.circle.fill")
                         .font(.system(size: 19, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
                 .font(.system(size: 16, weight: .regular))
                 .padding(.horizontal, 14)
-                .frame(minHeight: 44)
+                .frame(minHeight: 48)
                 .background(AuthGlassBackground(cornerRadius: 22, interactive: true))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(.white.opacity(0.08), lineWidth: 0.6)
+                }
 
                 Button(action: primaryComposerAction) {
                     Image(systemName: canSend ? "arrow.up" : isRecordingVoice ? "stop.fill" : "mic.fill")
                         .font(.system(size: 19, weight: .bold))
                         .frame(width: 44, height: 44)
                         .foregroundStyle(.white)
-                        .background {
+                        .background(AuthGlassBackground(cornerRadius: 22, interactive: true))
+                        .overlay {
                             Circle()
-                                .fill(isRecordingVoice ? Color.red.opacity(0.82) : Color.primary.opacity(0.22))
-                                .background(AuthGlassBackground(cornerRadius: 22, interactive: true).clipShape(Circle()))
+                                .fill(isRecordingVoice ? Color.red.opacity(0.82) : Color.primary.opacity(0.10))
+                                .opacity(0.9)
                         }
                         .scaleEffect(isRecordingVoice ? 1.08 : 1)
                         .animation(.easeInOut(duration: 0.32), value: isRecordingVoice)
@@ -372,10 +339,9 @@ struct ConversationView: View {
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 12)
-            .padding(.bottom, 9)
+            .padding(.bottom, 6)
         }
         .padding(.top, 8)
-        .background(.ultraThinMaterial.opacity(0.72))
     }
 
     private var canSend: Bool {

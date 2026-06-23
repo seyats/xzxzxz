@@ -11,7 +11,9 @@ struct PostMediaGrid: View {
         Group {
             if media.count == 1, let first = media.first {
                 PostMediaCell(media: first) { onOpen?(0) }
-                    .aspectRatio(first.aspectRatio, contentMode: .fit)
+                    .aspectRatio(clampedAspectRatio(first.aspectRatio), contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .frame(maxHeight: 420)
             } else {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 2), GridItem(.flexible(), spacing: 2)], spacing: 2) {
                     ForEach(Array(media.prefix(4).enumerated()), id: \.element.id) { index, item in
@@ -22,6 +24,10 @@ struct PostMediaGrid: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func clampedAspectRatio(_ ratio: Double) -> CGFloat {
+        CGFloat(min(max(ratio, 0.78), 1.7))
     }
 }
 

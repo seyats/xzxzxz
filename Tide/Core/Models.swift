@@ -350,27 +350,18 @@ enum AppRoute: Hashable {
     case post(UUID)
     case profile(User)
     case chat(UUID)
-    case settings
-    case appearance
-    case storage
-    case dataManagement
-    case storageFiles
-    case activeSessions
-    case blockedAccounts
     case stories(UUID)
     case live
     case browser(URL)
     case admin
     case notifications
     case moderation(UUID)
-    case call(UUID, Bool)
     case botPlatform
 }
 
 enum AppSheet: Identifiable {
     case composer
     case newMessage
-    case editProfile
     case share(URL)
     case report(UUID, String)
     case createStory
@@ -380,7 +371,6 @@ enum AppSheet: Identifiable {
         switch self {
         case .composer: "composer"
         case .newMessage: "new-message"
-        case .editProfile: "edit-profile"
         case .share(let url): "share-\(url.absoluteString)"
         case .report(let id, _): "report-\(id)"
         case .createStory: "create-story"

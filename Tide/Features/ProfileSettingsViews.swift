@@ -417,11 +417,8 @@ private struct StandardPanelBackground: View {
 
 struct SettingsView: View {
     @Environment(AppDependencies.self) private var dependencies
-    @State private var confirmsDeletion = false
 
     var body: some View {
-        @Bindable var preferences = dependencies.preferences
-
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 16) {
                 GlassScreenHeader(title: "Настройки")
@@ -430,85 +427,17 @@ struct SettingsView: View {
                 SettingsProfileCard(
                     user: dependencies.session.currentUser,
                     authInfo: dependencies.session.currentAuthInfo()
-                ) {
-                    dependencies.router.sheet = .editProfile
-                }
+                )
                 .padding(.horizontal, 16)
 
-                SettingsGlassSection(title: "Профиль") {
-                    SettingsGlassRow(symbol: "person.crop.circle", title: "Редактировать профиль") {
-                        dependencies.router.sheet = .editProfile
-                    }
-                    SettingsGlassRow(symbol: "iphone.gen3", title: "Активные сессии") {
-                        dependencies.router.push(.activeSessions)
-                    }
-                }
-
-                SettingsGlassSection(title: "Оформление") {
-                    SettingsGlassRow(symbol: "circle.lefthalf.filled", title: "Тема", trailing: preferences.theme.title) {
-                        dependencies.router.push(.appearance)
-                    }
-                    SettingsGlassRow(symbol: "photo", title: "Фон", trailing: preferences.backdropStyle.title) {
-                        dependencies.router.push(.appearance)
-                    }
-                }
-
-                SettingsGlassSection(title: "Уведомления") {
-                    SettingsToggleRow(symbol: "bell", title: "Push-уведомления", isOn: $preferences.notificationsEnabled)
-                    SettingsGlassRow(
-                        symbol: "arrow.triangle.2.circlepath",
-                        title: "Запросить доступ",
-                        trailing: notificationStatusTitle
-                    ) {
-                        Task { await dependencies.push.requestAuthorization() }
-                    }
-                }
-
-                SettingsGlassSection(title: "Приватность") {
-                    SettingsGlassRow(symbol: "person.2.slash", title: "Заблокированные аккаунты", trailing: blockedCountText) {
-                        dependencies.router.push(.blockedAccounts)
-                    }
-                }
-
-                SettingsGlassSection(title: "Данные") {
-                    SettingsGlassRow(symbol: "externaldrive", title: "Хранилище") {
-                        dependencies.router.push(.storage)
-                    }
-                    SettingsGlassRow(symbol: "externaldrive.connected.to.line.below", title: "Управление данными") {
-                        dependencies.router.push(.dataManagement)
-                    }
-                }
-
-                SettingsGlassSection(title: "Помощь") {
-                    SettingsGlassRow(symbol: "questionmark.circle", title: "Справка") {
-                        dependencies.router.push(.browser(URL(string: "https://tide.app/help")!))
-                    }
-                    SettingsGlassRow(symbol: "square.and.arrow.up", title: "Поделиться Tide") {
-                        dependencies.router.sheet = .share(URL(string: "https://tide.app")!)
-                    }
-                }
-
-                if dependencies.session.currentUser?.isAdministrator == true {
-                    SettingsGlassSection(title: "Tide") {
-                        SettingsGlassRow(symbol: "shield.lefthalf.filled", title: "Панель администратора") {
-                            dependencies.router.sheet = .adminAccess
-                        }
-                        SettingsGlassRow(symbol: "theatermasks", title: "Платформа ботов") {
-                            dependencies.router.push(.botPlatform)
-                        }
-                    }
-                }
-
-                SettingsGlassSection(title: "Аккаунт") {
-                    SettingsGlassRow(symbol: "rectangle.portrait.and.arrow.right", title: "Выйти", role: .destructive) {
-                        withAnimation(.easeInOut(duration: 0.42)) {
-                            dependencies.session.signOut()
-                            dependencies.router.reset()
-                        }
-                    }
-                    SettingsGlassRow(symbol: "trash", title: "Удалить аккаунт", role: .destructive) {
-                        confirmsDeletion = true
-                    }
+                SettingsGlassSection(title: "Информация") {
+                    SettingsGlassRowContent(
+                        symbol: "checkmark.seal",
+                        title: "Старые настройки и редактирование профиля удалены",
+                        trailing: nil,
+                        role: .secondary,
+                        showsChevron: false
+                    )
                 }
             }
             .padding(.bottom, 28)
@@ -516,118 +445,80 @@ struct SettingsView: View {
         .background(SettingsScreenBackground().ignoresSafeArea())
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog("Удалить этот локальный аккаунт?", isPresented: $confirmsDeletion, titleVisibility: .visible) {
-            Button("Удалить аккаунт", role: .destructive) {
-                dependencies.session.signOut()
-                dependencies.router.reset()
-            }
-            Button("Отмена", role: .cancel) {}
-        }
-    }
-
-    private var notificationStatusTitle: String {
-        switch dependencies.push.authorizationStatus {
-        case .authorized:
-            return "Разрешено"
-        case .denied:
-            return "Запрещено"
-        case .provisional:
-            return "Временно"
-        case .ephemeral:
-            return "Временный доступ"
-        case .notDetermined:
-            return "Не запрошено"
-        @unknown default:
-            return "Неизвестно"
-        }
-    }
-
-    private var blockedCountText: String {
-        let count = dependencies.database.users().filter(\.isBlocked).count
-        return count == 0 ? "Нет" : "\(count)"
     }
 }
 
 private struct SettingsProfileCard: View {
     let user: User?
     let authInfo: AuthAccountInfo
-    let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            HStack(alignment: .top, spacing: 14) {
-                if let user {
-                    AvatarView(user: user, size: 68)
-                } else {
-                    Circle()
-                        .fill(.white.opacity(0.08))
-                        .frame(width: 68, height: 68)
-                        .overlay {
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.system(size: 30, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    if let user {
-                        VerifiedName(user: user)
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(.white)
-                        Text(user.handle)
-                            .font(.system(size: 14, weight: .regular))
+        HStack(alignment: .top, spacing: 14) {
+            if let user {
+                AvatarView(user: user, size: 68)
+            } else {
+                Circle()
+                    .fill(.white.opacity(0.08))
+                    .frame(width: 68, height: 68)
+                    .overlay {
+                        Image(systemName: "person.crop.circle.fill")
+                            .font(.system(size: 30, weight: .semibold))
                             .foregroundStyle(.secondary)
-                        if !user.biography.isEmpty {
-                            Text(user.biography)
-                                .font(.system(size: 14, weight: .regular))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
-                        }
-                    } else {
-                        Text("Профиль")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(.white)
-                        Text("Откройте профиль, чтобы изменить имя, фото и био.")
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                if let user {
+                    VerifiedName(user: user)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text(user.handle)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(.secondary)
+                    if !user.biography.isEmpty {
+                        Text(user.biography)
                             .font(.system(size: 14, weight: .regular))
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
+                } else {
+                    Text("Профиль")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text("Откройте профиль, чтобы изменить имя, фото и био.")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
 
-                    HStack(spacing: 8) {
-                        Label(authInfo.provider.title, systemImage: authInfo.provider == .email ? "envelope" : "person.crop.circle")
-                            .font(.system(size: 12, weight: .semibold))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(.white.opacity(0.08), in: Capsule())
+                HStack(spacing: 8) {
+                    Label(authInfo.provider.title, systemImage: authInfo.provider == .email ? "envelope" : "person.crop.circle")
+                        .font(.system(size: 12, weight: .semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.white.opacity(0.08), in: Capsule())
 
-                        if !authInfo.email.isEmpty {
-                            Text(authInfo.email)
-                                .font(.system(size: 12, weight: .regular))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                    }
-
-                    if let footnote = authInfo.providerFootnote {
-                        Text(footnote)
+                    if !authInfo.email.isEmpty {
+                        Text(authInfo.email)
                             .font(.system(size: 12, weight: .regular))
                             .foregroundStyle(.secondary)
-                            .lineLimit(2)
+                            .lineLimit(1)
                     }
                 }
 
-                Spacer(minLength: 0)
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 8)
+                if let footnote = authInfo.providerFootnote {
+                    Text(footnote)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(SignalSettingsCardBackground())
+
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(SignalSettingsCardBackground())
     }
 }
 
@@ -948,9 +839,7 @@ struct DataManagementView: View {
         VStack(alignment: .leading, spacing: 22) {
             GlassScreenHeader(title: "Управление данными")
 
-            Button {
-                dependencies.router.push(.storageFiles)
-            } label: {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 12) {
                     Image(systemName: "cylinder.split.1x2")
                         .font(.system(size: 20, weight: .semibold))
@@ -970,8 +859,11 @@ struct DataManagementView: View {
                 .padding(.horizontal, 16)
                 .frame(height: 64)
                 .background(StandardPanelBackground(cornerRadius: 16))
+                Text("Список файлов больше не доступен.")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 16)
             }
-            .buttonStyle(.plain)
             .padding(.horizontal, 16)
 
             Spacer()

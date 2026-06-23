@@ -89,20 +89,12 @@ struct MainTabView: View {
         case .post(let id): PostDetailView(postID: id)
         case .profile(let user): ProfileView(user: user)
         case .chat(let id): ConversationView(chatID: id)
-        case .settings: SettingsView()
-        case .appearance: AppearanceView()
-        case .storage: StorageView()
-        case .dataManagement: DataManagementView()
-        case .storageFiles: StorageFilesView()
-        case .activeSessions: ActiveSessionsView()
-        case .blockedAccounts: BlockedAccountsView()
         case .stories(let id): StoryViewer(storyID: id)
         case .live: LiveHubView()
         case .browser(let url): BrowserView(url: url)
         case .admin: AdminView()
         case .notifications: NotificationsView()
         case .moderation(let id): ModerationDetailView(reportID: id)
-        case .call(let chatID, let video): CallView(chatID: chatID, isVideo: video)
         case .botPlatform: BotPlatformView()
         }
     }
@@ -112,7 +104,6 @@ struct MainTabView: View {
         switch sheet {
         case .composer: ComposerView()
         case .newMessage: NewMessageView()
-        case .editProfile: EditProfileView()
         case .share(let url): ShareView(url: url)
         case .report(let targetID, let targetType): ReportView(targetID: targetID, targetType: targetType)
         case .createStory: StoryComposerView()
