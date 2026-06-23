@@ -547,39 +547,6 @@ struct SettingsView: View {
         return count == 0 ? "Нет" : "\(count)"
     }
 }
-    private var notificationStatusTitle: String {
-        switch dependencies.push.authorizationStatus {
-        case .authorized:
-            return "Разрешено"
-        case .denied:
-            return "Запрещено"
-        case .provisional:
-            return "Временно"
-        case .ephemeral:
-            return "Временный доступ"
-        case .notDetermined:
-            return "Не запрошено"
-        @unknown default:
-            return "Неизвестно"
-        }
-    }
-
-    private var blockedCountText: String {
-        let count = dependencies.database.users().filter(\.isBlocked).count
-        return count == 0 ? "Нет" : "\(count)"
-    }
-
-    private var settingsHeader: some View {
-        HStack {
-            Spacer()
-            Text("Настройки")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.white)
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-    }
-}
 
 private struct SettingsProfileCard: View {
     let user: User?
