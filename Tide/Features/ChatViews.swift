@@ -384,7 +384,7 @@ struct ConversationView: View {
     private var attachmentOptionsCard: some View {
         VStack(spacing: 0) {
             PhotosPicker(selection: $selectedItem, matching: .any(of: [.images, .videos])) {
-                attachmentRow(title: "Фотогалерея", systemImage: "photo.on.rectangle")
+                ChatAttachmentRow(title: "Фотогалерея", systemImage: "photo.on.rectangle")
             }
             .buttonStyle(.plain)
 
@@ -394,7 +394,7 @@ struct ConversationView: View {
                 isImportingFile = true
                 isShowingAttachmentOptions = false
             } label: {
-                attachmentRow(title: "Выбрать из файлов", systemImage: "folder")
+                ChatAttachmentRow(title: "Выбрать из файлов", systemImage: "folder")
             }
             .buttonStyle(.plain)
 
@@ -404,7 +404,7 @@ struct ConversationView: View {
                 isShowingCamera = true
                 isShowingAttachmentOptions = false
             } label: {
-                attachmentRow(title: "Снять фото", systemImage: "camera")
+                ChatAttachmentRow(title: "Снять фото", systemImage: "camera")
             }
             .buttonStyle(.plain)
         }
@@ -414,20 +414,6 @@ struct ConversationView: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(.white.opacity(0.12), lineWidth: 0.8)
         }
-    }
-
-    private func attachmentRow(title: String, systemImage: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: 18, weight: .semibold))
-                .frame(width: 24)
-            Text(title)
-                .font(.system(size: 17, weight: .semibold))
-            Spacer(minLength: 0)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, 16)
-        .frame(minWidth: 240, minHeight: 44, alignment: .leading)
     }
 
     private func primaryComposerAction() {
@@ -1002,5 +988,24 @@ struct CallView: View {
     private func duration(from: Date, to: Date) -> String {
         let seconds = max(0, Int(to.timeIntervalSince(from)))
         return String(format: "%02d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+private struct ChatAttachmentRow: View {
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 18, weight: .semibold))
+                .frame(width: 24)
+            Text(title)
+                .font(.system(size: 17, weight: .semibold))
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .frame(minWidth: 240, minHeight: 44, alignment: .leading)
     }
 }
