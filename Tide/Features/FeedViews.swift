@@ -362,7 +362,7 @@ struct ComposerView: View {
     private func attachmentMenu(hasSelectedMedia: Bool, selectedMediaCount: Int) -> some View {
         Menu {
             PhotosPicker(selection: $mediaItems, maxSelectionCount: 10, matching: .any(of: [.images, .videos])) {
-                menuRow(
+                ComposerAttachmentMenuRow(
                     title: hasSelectedMedia ? "Добавить ещё" : "Фотогалерея",
                     systemImage: "photo.on.rectangle",
                     trailing: hasSelectedMedia ? "\(selectedMediaCount)" : nil
@@ -371,7 +371,7 @@ struct ComposerView: View {
             Button {
                 isImportingFile = true
             } label: {
-                menuRow(title: "Выбрать из файлов", systemImage: "folder")
+                ComposerAttachmentMenuRow(title: "Выбрать из файлов", systemImage: "folder")
             }
         } label: {
             Image(systemName: "paperclip")
@@ -382,8 +382,14 @@ struct ComposerView: View {
         }
         .buttonStyle(.plain)
     }
+}
 
-    private func menuRow(title: String, systemImage: String, trailing: String? = nil) -> some View {
+private struct ComposerAttachmentMenuRow: View {
+    let title: String
+    let systemImage: String
+    var trailing: String? = nil
+
+    var body: some View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
                 .font(.system(size: 18, weight: .semibold))

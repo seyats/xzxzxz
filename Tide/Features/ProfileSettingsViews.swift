@@ -435,7 +435,7 @@ struct SettingsView: View {
                         symbol: "checkmark.seal",
                         title: "Старые настройки и редактирование профиля удалены",
                         trailing: nil,
-                        role: .secondary,
+                        role: nil,
                         showsChevron: false
                     )
                 }
