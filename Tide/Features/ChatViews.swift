@@ -104,7 +104,7 @@ struct ChatRow: View {
                 }
 
                 HStack {
-                    if chat.lastMessage?.attachmentKind != .none {
+                    if let attachmentKind = chat.lastMessage?.attachmentKind, attachmentKind != .none {
                         Image(systemName: "paperclip")
                             .foregroundStyle(.secondary)
                     }

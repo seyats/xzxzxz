@@ -224,6 +224,14 @@ actor APIClient {
         let _: EmptyResponse = try await request(path: path, method: "DELETE", body: Optional<String>.none, as: EmptyResponse.self)
     }
 
+    func createCall(chatID: UUID, isVideo: Bool) async throws -> CallSessionDTO {
+        try await post("/calls", body: CreateCallRequestDTO(chatID: chatID, isVideo: isVideo), as: CallSessionDTO.self)
+    }
+
+    func endCall(id: UUID) async throws -> CallSessionDTO {
+        try await post("/calls/\(id.uuidString)/end", body: EmptyResponse(), as: CallSessionDTO.self)
+    }
+
     private func request<Body: Encodable & Sendable, Response: Decodable & Sendable>(
         path: String,
         method: String,

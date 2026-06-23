@@ -236,6 +236,9 @@ struct ComposerView: View {
     @State private var selectedMedia: [ComposerMedia] = []
 
     var body: some View {
+        let hasSelectedMedia = !selectedMedia.isEmpty
+        let selectedMediaCount = selectedMedia.count
+
         NavigationStack {
             Form {
                 Section {
@@ -272,10 +275,10 @@ struct ComposerView: View {
                             HStack(spacing: 10) {
                                 Image(systemName: "photo.on.rectangle")
                                     .font(.system(size: 16, weight: .semibold))
-                                Text(selectedMedia.isEmpty ? "Фото и видео" : "Добавить ещё")
+                                Text(hasSelectedMedia ? "Добавить ещё" : "Фото и видео")
                                     .font(.system(size: 15, weight: .semibold))
                                 Spacer()
-                                Text(selectedMedia.isEmpty ? "Галерея" : "\(selectedMedia.count)")
+                                Text(hasSelectedMedia ? "\(selectedMediaCount)" : "Галерея")
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)
                             }
